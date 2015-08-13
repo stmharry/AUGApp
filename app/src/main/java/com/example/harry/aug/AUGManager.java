@@ -22,7 +22,8 @@ public class AUGManager {
         STATE_STOPPED,
         STATE_PLAYING,
         STATE_PAUSED,
-        STATE_SEEK
+        STATE_SEEK,
+        STATE_DUMMY
     }
 
     /////////////
