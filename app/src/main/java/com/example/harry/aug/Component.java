@@ -85,15 +85,15 @@ public abstract class Component implements Runnable {
         }
     }
 
-    public long seek() { return 0; }
-
-    public void seek(long time) {}
+    public long seek() {
+        return 0;
+    }
 
     /////////////
     // PROCESS //
     /////////////
 
-    protected void initialize() {
+    protected void initializeElement() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
 
         // Media
@@ -112,8 +112,6 @@ public abstract class Component implements Runnable {
     }
 
     protected void initializeBuffer() {}
-
-    protected void reset() {}
 
     protected boolean loop() {
         return (!outputEOS

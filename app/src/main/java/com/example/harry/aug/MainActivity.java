@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
         ContentResolver contentResolver = getContentResolver();
         Cursor cursor = contentResolver.query(Media.EXTERNAL_CONTENT_URI, null, null, null, null);
 
-        ArrayList<Song> songList = new ArrayList<>();
+        ArrayList<Song> songList = new ArrayList<Song>();
         if(cursor.moveToFirst()) {
             int titleKeyColumn = cursor.getColumnIndex(Media.TITLE_KEY);
             int titleColumn = cursor.getColumnIndex(Media.TITLE);

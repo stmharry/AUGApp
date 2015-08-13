@@ -31,13 +31,7 @@ public class AudioPlayer extends Component implements Runnable {
 
     @Override
     public long seek() {
-        return 0L; // later
-    }
-
-    @Override
-    public void seek(long time) {
-        audioTrack.pause();
-        audioTrack.flush();
+        return (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
     }
 
     /////////////
@@ -45,8 +39,8 @@ public class AudioPlayer extends Component implements Runnable {
     /////////////
 
     @Override
-    protected void initialize() {
-        super.initialize();
+    protected void initializeElement() {
+        super.initializeElement();
 
         // Audio Track
         streamType = AudioManager.STREAM_MUSIC;
@@ -56,14 +50,19 @@ public class AudioPlayer extends Component implements Runnable {
         mode = AudioTrack.MODE_STREAM;
 
         audioTrack = new AudioTrack(streamType, sampleRate, channelConfiguration, audioFormat, bufferSize, mode);
-        audioTrack.play();
 
         Log.d(TAG, "Track info: "
                 + "sampleRate = " + String.valueOf(sampleRate) + ", "
                 + "bufferSize = " + String.valueOf(bufferSize));
+    }
 
-        // Buffer
+    @Override
+    protected void initializeBuffer() {
         inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
+
+        audioTrack.pause();
+        audioTrack.flush();
+        audioTrack.play();
     }
 
     @Override

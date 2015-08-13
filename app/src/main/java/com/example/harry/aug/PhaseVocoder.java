@@ -291,10 +291,10 @@ public class PhaseVocoder extends Component implements Runnable {
         float[] leftT = new float[fftSizeCompact];
         float[] rightT = new float[fftSizeCompact];
 
-        //myLogD("--- [interpolate] ---");
-        //myLogD("left (time / frequency domain)");
+        myLogD("--- [interpolate] ---");
+        myLogD("left (time / frequency domain)");
         process(leftR, leftT, leftReal);
-        //myLogD("right (time / frequency domain)");
+        myLogD("right (time / frequency domain)");
         process(rightR, rightT, rightReal);
 
         if(phase == null) {
@@ -315,8 +315,8 @@ public class PhaseVocoder extends Component implements Runnable {
 
         pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
 
-        //myLogD("inter (frequency domain)");
-        //myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
+        myLogD("inter (frequency domain)");
+        myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
 
         float[] interImag = new float[fftFrameSize];
 
@@ -336,8 +336,8 @@ public class PhaseVocoder extends Component implements Runnable {
         window.window(interReal);
         window.scale(interReal);
 
-        //myLogD("inter (time domain)");
-        //myLogArray(interReal);
+        myLogD("inter (time domain)");
+        myLogArray(interReal);
     }
 
     /////////////
@@ -345,8 +345,8 @@ public class PhaseVocoder extends Component implements Runnable {
     /////////////
 
     @Override
-    protected void initialize() {
-        super.initialize();
+    protected void initializeElement() {
+        super.initializeElement();
 
         // FFT
         fftFrameSize = (int)(sampleRate * FFT_TIME);
@@ -363,12 +363,12 @@ public class PhaseVocoder extends Component implements Runnable {
         window = new Window(fftFrameSize);
 
         // Playback
-        speed = 0.5f;
+        speed = 1f;
         startSample = 1;
     }
 
     @Override
-    protected void reset() {
+    protected void initializeBuffer() {
         // Buffer
         inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
         inFloatBuffer = new FloatBuffer[numChannel];
@@ -404,7 +404,7 @@ public class PhaseVocoder extends Component implements Runnable {
         myLogD("ceilRightSample = " + String.valueOf(ceilRightSample));
 
         // INPUT
-        while(!inputEOS && (endSample < ceilRightSample)) {
+        while(endSample < ceilRightSample) {
             byte[] byteArray = dequeueInput(TIMEOUT_US);
 
             if(byteArray != null) {
@@ -464,8 +464,8 @@ public class PhaseVocoder extends Component implements Runnable {
 
             out[i] = Arrays.copyOfRange(outTemp, 0, fftHopSize);
 
-            //myLogD("out (time domain)");
-            //myLogArray(out);
+            myLogD("out (time domain)");
+            myLogArray(out[i]);
         }
 
         myLogD("left range: " + String.valueOf(floorLeftSample - startSample + 1) + " -> " + String.valueOf(floorRightSample - startSample + 1));

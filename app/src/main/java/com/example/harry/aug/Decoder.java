@@ -30,19 +30,13 @@ public class Decoder extends Component implements Runnable {
         return 0L; // TODO
     }
 
-    public void seek(long time) {
-        synchronized(mediaCodec) {
-            reset();
-        }
-    }
-
     /////////////
     // PROCESS //
     /////////////
 
     @Override
-    protected void initialize() {
-        super.initialize();
+    protected void initializeElement() {
+        super.initializeElement();
 
         // Media Codec
         try {
@@ -57,13 +51,12 @@ public class Decoder extends Component implements Runnable {
         // Buffer
         augManager.getMediaExtractor().selectTrack(0);
         bufferInfo = new MediaCodec.BufferInfo();
-
-        initializeBuffer();
     }
 
     @Override
     protected void initializeBuffer() {
         mediaCodec.flush();
+
         inputBuffers = mediaCodec.getInputBuffers();
         outputBuffers = mediaCodec.getOutputBuffers();
     }

@@ -22,8 +22,7 @@ public class AUGManager {
         STATE_STOPPED,
         STATE_PLAYING,
         STATE_PAUSED,
-        STATE_SEEK,
-        STATE_DUMMY
+        STATE_SEEK
     }
 
     /////////////
@@ -94,7 +93,8 @@ public class AUGManager {
 
     public void prepare() {
         for(Component component: components) {
-            component.initialize();
+            component.initializeElement();
+            component.initializeBuffer();
         }
     }
 
@@ -126,13 +126,12 @@ public class AUGManager {
         state = State.STATE_STOPPED;
     }
 
-    public long seek() {
-        return 0;
-        // TODO: audio time tracking system
-    }
-
     public void seek(long time) {
         mediaExtractor.seekTo(time, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
         state = State.STATE_SEEK;
+    }
+
+    public long seek() {
+        return components[0].seek();
     }
 }
