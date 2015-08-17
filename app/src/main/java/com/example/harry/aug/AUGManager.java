@@ -18,17 +18,6 @@ public class AUGManager {
     // INNER CLASS //
     /////////////////
 
-    public enum State {
-        STATE_STOPPED,
-        STATE_PLAYING,
-        STATE_PAUSED,
-        STATE_SEEK
-    }
-
-    /////////////
-    // UTILITY //
-    /////////////
-
     public AUGManager() {
         state = State.STATE_STOPPED;
         mediaExtractor = new MediaExtractor();
@@ -38,6 +27,10 @@ public class AUGManager {
             components[i].setNext((i != components.length - 1)? components[i + 1] : null);
         }
     }
+
+    /////////////
+    // UTILITY //
+    /////////////
 
     public State getState() {
         return state;
@@ -59,10 +52,6 @@ public class AUGManager {
     public MediaExtractor getMediaExtractor() {
         return mediaExtractor;
     }
-
-    /////////////
-    // PROCESS //
-    /////////////
 
     public void setDataSource(String dataSource) {
         // Media Extractor
@@ -90,6 +79,10 @@ public class AUGManager {
             Log.e(TAG, "Media format error: " + e.getMessage());
         }
     }
+
+    /////////////
+    // PROCESS //
+    /////////////
 
     public void prepare() {
         for(Component component: components) {
@@ -132,6 +125,13 @@ public class AUGManager {
     }
 
     public long seek() {
-        return components[0].seek();
+        return components[0].getTime();
+    }
+
+    public enum State {
+        STATE_STOPPED,
+        STATE_PLAYING,
+        STATE_PAUSED,
+        STATE_SEEK
     }
 }

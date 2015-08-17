@@ -5,8 +5,6 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
 
-import java.util.concurrent.ArrayBlockingQueue;
-
 /**
  * Created by harry on 15/8/2.
  */
@@ -27,11 +25,6 @@ public class AudioPlayer extends Component implements Runnable {
 
     public AudioPlayer(AUGManager augManager) {
         super(TAG, augManager);
-    }
-
-    @Override
-    public long seek() {
-        return (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
     }
 
     /////////////
@@ -58,7 +51,7 @@ public class AudioPlayer extends Component implements Runnable {
 
     @Override
     protected void initializeBuffer() {
-        inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
+        super.initializeBuffer();
 
         audioTrack.pause();
         audioTrack.flush();
@@ -66,14 +59,7 @@ public class AudioPlayer extends Component implements Runnable {
     }
 
     @Override
-    protected boolean loop() {
-        return super.loop();
-    }
-
-    @Override
-    protected void action() {
-        super.action();
-
+    protected void operation() {
         if(!inputEOS) {
             byte[] in = dequeueInput(TIMEOUT_US);
 
@@ -81,10 +67,11 @@ public class AudioPlayer extends Component implements Runnable {
                 audioTrack.write(in, 0, in.length);
             }
         }
+    }
 
-        if(inputEOS & inputQueue.isEmpty()) {
-            setOutputEOS();
-        }
+    @Override
+    protected void setTime() {
+        time = (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
     }
 
     @Override

@@ -12,13 +12,11 @@ import java.util.concurrent.TimeUnit;
  * Created by harry on 15/8/2.
  */
 public abstract class Component implements Runnable {
-    protected String TAG;
-
     protected static final int BUFFER_QUEUE_CAPACITY = 16;
     protected static final int BYTE_PER_SHORT = Short.SIZE / 8;
     protected static final long TIMEOUT_US = 1000;
     protected static final long S_TO_US = TimeUnit.SECONDS.toMicros(1);
-
+    protected String TAG;
     protected AUGManager augManager;
     protected Component prev;
     protected Component next;
@@ -33,6 +31,7 @@ public abstract class Component implements Runnable {
     protected int sampleRate;
     protected int numChannel;
     protected long duration;
+    protected long time;
 
     /////////////
     // UTILITY //
@@ -85,8 +84,8 @@ public abstract class Component implements Runnable {
         }
     }
 
-    public long seek() {
-        return 0;
+    public long getTime() {
+        return time;
     }
 
     /////////////
@@ -111,14 +110,16 @@ public abstract class Component implements Runnable {
                 + "duration = " + String.valueOf(duration));
     }
 
-    protected void initializeBuffer() {}
+    protected void initializeBuffer() {
+        inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
+    }
 
     protected boolean loop() {
         return (!outputEOS
                 && (augManager.getState() != AUGManager.State.STATE_STOPPED));
     }
 
-    protected void action() {
+    protected void checkState() {
         synchronized(this) {
             switch(augManager.getState()) {
                 case STATE_PAUSED:
@@ -137,6 +138,19 @@ public abstract class Component implements Runnable {
         }
     }
 
+    protected void operation() {
+    }
+
+    protected void setTime() {
+        time = next.getTime();
+    }
+
+    protected void setEOS() {
+        if (inputEOS & inputQueue.isEmpty()) {
+            setOutputEOS();
+        }
+    }
+
     protected void terminate() {
         if(last) {
             augManager.setState(AUGManager.State.STATE_STOPPED);
@@ -147,7 +161,10 @@ public abstract class Component implements Runnable {
     @Override
     public void run() {
         while(loop()) {
-            action();
+            checkState();
+            operation();
+            setTime();
+            setEOS();
         }
         terminate();
     }

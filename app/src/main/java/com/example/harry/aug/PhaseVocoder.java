@@ -7,7 +7,6 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
-import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  * Created by harry on 15/8/2.
@@ -23,12 +22,14 @@ public class PhaseVocoder extends Component implements Runnable {
     private FFT fft;
     private FloatBuffer[] inFloatBuffer;
     private FloatBuffer[] outFloatBuffer;
+    private FloatBuffer frameBuffer;
 
     private float[] magnitude;
     private float[] phase;
 
     private float speed;
     private float frame;
+    private int removedFrame;
     private int startSample;
     private int endSample;
 
@@ -36,178 +37,23 @@ public class PhaseVocoder extends Component implements Runnable {
     private int fftSizeLog;
     private int fftSizeCompact;
     private int fftHopSize;
+    private long fftHopSizeUs;
 
     /////////////////
     // INNER CLASS //
     /////////////////
 
-    private static class Window {
-        private int n;
-        private float[] w;
-
-        public Window(int n) {
-            this.n = n;
-            w = new float[n];
-            for(int i = 0; i < n; i++) {
-                w[i] = (float)(1 - Math.cos(2 * Math.PI * i / n)) / 2;
-            }
-        }
-
-        public void window(float[] x) {
-            if(x.length != n) {
-                throw new RuntimeException();
-            }
-
-            for(int i = 0; i < n; i++) {
-                x[i] *= w[i];
-            }
-        }
-
-        public void scale(float[] x) {
-            if(x.length != n) {
-                throw new RuntimeException();
-            }
-
-            for(int i = 0; i < n; i++) {
-                x[i] *= (2f / 3);
-            }
-        }
+    public PhaseVocoder(AUGManager augManager) {
+        super(TAG, augManager);
     }
 
-    private static class FFT {
-        private int n;
-        private int m;
-        private float[] cos;
-        private float[] sin;
-
-        public FFT(int n, int m) {
-            this.n = n;
-            this.m = m;
-
-            cos = new float[n / 2];
-            sin = new float[n / 2];
-            for(int i = 0; i < n / 2; i++) {
-                cos[i] = (float)(Math.cos(-2 * Math.PI * i / n));
-                sin[i] = (float)(Math.sin(-2 * Math.PI * i / n));
-            }
-        }
-
-        private void reverse(float[] x, float[] y) {
-            int i, j, n1, n2;
-            float t1;
-
-            j = 0;
-            n2 = n / 2;
-            for (i = 1; i < n - 1; i++) {
-                n1 = n2;
-                while (j >= n1) {
-                    j = j - n1;
-                    n1 = n1 / 2;
-                }
-                j = j + n1;
-
-                if (i < j) {
-                    t1 = x[i];
-                    x[i] = x[j];
-                    x[j] = t1;
-                    t1 = y[i];
-                    y[i] = y[j];
-                    y[j] = t1;
-                }
-            }
-        }
-
-        public void fft(float[] x, float[] y) {
-            if((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            int i, j, k, n1, n2, a;
-            float c, s, t1, t2;
-
-            reverse(x, y);
-
-            // FFT
-            n1 = 0;
-            n2 = 1;
-
-            for (i = 0; i < m; i++) {
-                n1 = n2;
-                n2 = n2 + n2;
-                a = 0;
-
-                for (j = 0; j < n1; j++) {
-                    c = cos[a];
-                    s = sin[a];
-                    a += 1 << (m - i - 1);
-
-                    for (k = j; k < n; k = k + n2) {
-                        t1 = c * x[k + n1] - s * y[k + n1];
-                        t2 = s * x[k + n1] + c * y[k + n1];
-                        x[k + n1] = x[k] - t1;
-                        y[k + n1] = y[k] - t2;
-                        x[k] = x[k] + t1;
-                        y[k] = y[k] + t2;
-                    }
-                }
-            }
-        }
-
-        public void ifft(float[] x, float[] y) {
-            if((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            int i, j, k, n1, n2, a;
-            float c, s, t1, t2;
-
-            reverse(x, y);
-
-            // FFT
-            n1 = 0;
-            n2 = 1;
-
-            for (i = 0; i < m; i++) {
-                n1 = n2;
-                n2 = n2 + n2;
-                a = 0;
-
-                for (j = 0; j < n1; j++) {
-                    c = cos[a];
-                    s = sin[a];
-                    a += 1 << (m - i - 1);
-
-                    for (k = j; k < n; k = k + n2) {
-                        t1 = c * x[k + n1] + s * y[k + n1];
-                        t2 = s * x[k + n1] - c * y[k + n1];
-                        x[k + n1] = x[k] - t1;
-                        y[k + n1] = y[k] + t2;
-                        x[k] = x[k] + t1;
-                        y[k] = y[k] - t2;
-                    }
-                }
-            }
-        }
-
-        public void scale(float[] x, float[] y) {
-            if((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            for(int i = 0; i < n; i++) {
-                x[i] /= n;
-                y[i] /= n;
-            }
-        }
+    private void myLogD(String str) {
+        // Log.d(TAG, str);
     }
 
     /////////
     // LOG //
     /////////
-
-    private void myLogD(String str) {
-        // Log.d(TAG, str);
-    }
 
     private void myLogComplex(float[] r, float[] t, float[] x, float[] y) {
         for(int i = 0; i < 8; i++) {
@@ -230,30 +76,12 @@ public class PhaseVocoder extends Component implements Runnable {
         }
     }
 
-    private void myLogArray(float[] x) {
-        for(int i = 0; i < x.length; i += 8) {
+    private void myLogArray(float[] x, int skip) {
+        for (int i = 0; i < x.length; i += skip) {
             myLogD("["
                     + String.valueOf(i) + "] = "
                     + String.format("%.2e", x[i]));
         }
-    }
-
-    /////////////
-    // UTILITY //
-    /////////////
-
-    public PhaseVocoder(AUGManager augManager) {
-        super(TAG, augManager);
-    }
-
-    public long seek() {
-        long nextTime = next.seek();
-
-        // 0 1 1.5 2
-        //
-        // 0 1   2 3
-
-        return 0L; // TODO
     }
 
     private void cart2pol(float[] r, float[] t, float[] x, float[] y) {
@@ -264,6 +92,10 @@ public class PhaseVocoder extends Component implements Runnable {
             t[i] = (float)(Math.atan2(y[i], x[i]));
         }
     }
+
+    /////////////
+    // UTILITY //
+    /////////////
 
     private void pol2cart(float[] x, float[] y, float[] r, float[] t) {
         int length = r.length;
@@ -291,10 +123,10 @@ public class PhaseVocoder extends Component implements Runnable {
         float[] leftT = new float[fftSizeCompact];
         float[] rightT = new float[fftSizeCompact];
 
-        myLogD("--- [interpolate] ---");
-        myLogD("left (time / frequency domain)");
+        //myLogD("--- [interpolate] ---");
+        //myLogD("left (time / frequency domain)");
         process(leftR, leftT, leftReal);
-        myLogD("right (time / frequency domain)");
+        //myLogD("right (time / frequency domain)");
         process(rightR, rightT, rightReal);
 
         if(phase == null) {
@@ -315,8 +147,8 @@ public class PhaseVocoder extends Component implements Runnable {
 
         pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
 
-        myLogD("inter (frequency domain)");
-        myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
+        //myLogD("inter (frequency domain)");
+        //myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
 
         float[] interImag = new float[fftFrameSize];
 
@@ -336,13 +168,9 @@ public class PhaseVocoder extends Component implements Runnable {
         window.window(interReal);
         window.scale(interReal);
 
-        myLogD("inter (time domain)");
-        myLogArray(interReal);
+        //myLogD("inter (time domain)");
+        //myLogArray(interReal, 8);
     }
-
-    /////////////
-    // PROCESS //
-    /////////////
 
     @Override
     protected void initializeElement() {
@@ -355,6 +183,7 @@ public class PhaseVocoder extends Component implements Runnable {
         fftFrameSize = 1 << fftSizeLog;
         fftSizeCompact = fftFrameSize / 2 + 1;
         fftHopSize = fftFrameSize / HOP_RATIO;
+        fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
 
@@ -363,14 +192,20 @@ public class PhaseVocoder extends Component implements Runnable {
         window = new Window(fftFrameSize);
 
         // Playback
-        speed = 1f;
-        startSample = 1;
+        speed = 0.6f;
     }
 
     @Override
     protected void initializeBuffer() {
+        super.initializeBuffer();
+
+        // Record
+        frame = 0;
+        removedFrame = 0;
+        startSample = 1;
+        endSample = 0;
+
         // Buffer
-        inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
         inFloatBuffer = new FloatBuffer[numChannel];
         outFloatBuffer = new FloatBuffer[numChannel];
         for(int i = 0; i < numChannel; i++) {
@@ -378,17 +213,15 @@ public class PhaseVocoder extends Component implements Runnable {
             outFloatBuffer[i] = FloatBuffer.allocate(BUFFER_CAPACITY);
             outFloatBuffer[i].put(new float[fftFrameSize]);
         }
+        frameBuffer = FloatBuffer.allocate(BUFFER_CAPACITY);
     }
 
-    @Override
-    protected boolean loop() {
-        return super.loop();
-    }
+    /////////////
+    // PROCESS //
+    /////////////
 
     @Override
-    protected void action() {
-        super.action();
-
+    protected void operation() {
         int floorFrame = (int)(Math.floor(frame));
         int ceilFrame = floorFrame + 1;
         float fracFrame = frame - floorFrame;
@@ -398,9 +231,10 @@ public class PhaseVocoder extends Component implements Runnable {
         int ceilLeftSample = ceilFrame * fftHopSize + 1;
         int ceilRightSample = ceilFrame * fftHopSize + fftFrameSize;
 
-        myLogD("--- [action] ---");
+        myLogD("--- [ACTION] ---");
         myLogD("frame = " + String.valueOf(frame));
         myLogD("startSample = " + String.valueOf(startSample));
+        myLogD("floorLeftSample = " + String.valueOf(floorLeftSample));
         myLogD("ceilRightSample = " + String.valueOf(ceilRightSample));
 
         // INPUT
@@ -412,7 +246,7 @@ public class PhaseVocoder extends Component implements Runnable {
                 ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortArray);
 
                 int numSample = byteArray.length / (numChannel * BYTE_PER_SHORT);
-                myLogD("--- [load] ---");
+                myLogD("--- [LOAD] ---");
                 myLogD("numSample = " + String.valueOf(numSample));
                 for(int i = 0; i < numChannel; i++) {
                     float[] floatArray = new float[numSample];
@@ -464,15 +298,21 @@ public class PhaseVocoder extends Component implements Runnable {
 
             out[i] = Arrays.copyOfRange(outTemp, 0, fftHopSize);
 
-            myLogD("out (time domain)");
-            myLogArray(out[i]);
+            //myLogD("out (time domain)");
+            //myLogArray(out[i], 8);
         }
 
-        myLogD("left range: " + String.valueOf(floorLeftSample - startSample + 1) + " -> " + String.valueOf(floorRightSample - startSample + 1));
-        myLogD("right range: " + String.valueOf(ceilLeftSample - startSample + 1) + " -> " + String.valueOf(ceilRightSample - startSample + 1));
+        frameBuffer.put(frame);
+        if (frameBuffer.position() == frameBuffer.limit()) {
+            int thisRemovedSize = frameBuffer.position() - BUFFER_QUEUE_CAPACITY;
+            removedFrame += thisRemovedSize;
+
+            frameBuffer.position(thisRemovedSize);
+            frameBuffer.compact();
+        }
+        frame += speed;
 
         startSample = floorLeftSample;
-        frame += speed;
 
         // OUTPUT
         short[] shortBufferArray = new short[fftHopSize * numChannel];
@@ -490,14 +330,209 @@ public class PhaseVocoder extends Component implements Runnable {
         byteBuffer.get(byteBufferArray);
 
         next.queueInput(byteBufferArray);
+    }
 
-        if(inputEOS & inputQueue.isEmpty()) {
-            setOutputEOS();
+    @Override
+    protected void setTime() {
+        long nextTime = next.getTime();
+        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
+        int floorNextFrame = (int) (Math.floor(nextFrame));
+        float fracNextFrame = nextFrame - floorNextFrame;
+
+        // myLogD("--- [SEEK] ---");
+
+        float leftFrame;
+        float rightFrame;
+        frameBuffer.flip();
+        frameBuffer.position(floorNextFrame);
+        frameBuffer.mark();
+        leftFrame = frameBuffer.get();
+        if (frameBuffer.hasRemaining()) {
+            rightFrame = frameBuffer.get();
+        } else {
+            rightFrame = leftFrame;
         }
+        frameBuffer.reset();
+        frameBuffer.compact();
+        removedFrame += floorNextFrame;
+
+        float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
+        time = (long) (thisFrame * fftHopSizeUs);
+
+        /*
+        myLogD("nextTime = " + String.valueOf(nextTime));
+        myLogD("nextFrame = " + String.valueOf(nextFrame));
+        myLogD("removedFrame = " + String.valueOf(removedFrame));
+        myLogD("leftFrame = " + String.valueOf(leftFrame));
+        myLogD("rightFrame = " + String.valueOf(rightFrame));
+        myLogD("thisFrame = " + String.valueOf(thisFrame));
+        myLogD("thisTime = " + String.valueOf(thisTime));
+        */
     }
 
     @Override
     protected void terminate() {
         super.terminate();
+        // TODO
+    }
+
+    private static class Window {
+        private int n;
+        private float[] w;
+
+        public Window(int n) {
+            this.n = n;
+            w = new float[n];
+            for (int i = 0; i < n; i++) {
+                w[i] = (float) (1 - Math.cos(2 * Math.PI * i / n)) / 2;
+            }
+        }
+
+        public void window(float[] x) {
+            if (x.length != n) {
+                throw new RuntimeException();
+            }
+
+            for (int i = 0; i < n; i++) {
+                x[i] *= w[i];
+            }
+        }
+
+        public void scale(float[] x) {
+            if (x.length != n) {
+                throw new RuntimeException();
+            }
+
+            for (int i = 0; i < n; i++) {
+                x[i] *= (2f / 3);
+            }
+        }
+    }
+
+    private static class FFT {
+        private int n;
+        private int m;
+        private float[] cos;
+        private float[] sin;
+
+        public FFT(int n, int m) {
+            this.n = n;
+            this.m = m;
+
+            cos = new float[n / 2];
+            sin = new float[n / 2];
+            for (int i = 0; i < n / 2; i++) {
+                cos[i] = (float) (Math.cos(-2 * Math.PI * i / n));
+                sin[i] = (float) (Math.sin(-2 * Math.PI * i / n));
+            }
+        }
+
+        private void reverse(float[] x, float[] y) {
+            int i, j, n1, n2;
+            float t1;
+
+            j = 0;
+            n2 = n / 2;
+            for (i = 1; i < n - 1; i++) {
+                n1 = n2;
+                while (j >= n1) {
+                    j = j - n1;
+                    n1 = n1 / 2;
+                }
+                j = j + n1;
+
+                if (i < j) {
+                    t1 = x[i];
+                    x[i] = x[j];
+                    x[j] = t1;
+                    t1 = y[i];
+                    y[i] = y[j];
+                    y[j] = t1;
+                }
+            }
+        }
+
+        public void fft(float[] x, float[] y) {
+            if ((x.length != n) || (y.length != n)) {
+                throw new RuntimeException();
+            }
+
+            int i, j, k, n1, n2, a;
+            float c, s, t1, t2;
+
+            reverse(x, y);
+
+            // FFT
+            n1 = 0;
+            n2 = 1;
+
+            for (i = 0; i < m; i++) {
+                n1 = n2;
+                n2 = n2 + n2;
+                a = 0;
+
+                for (j = 0; j < n1; j++) {
+                    c = cos[a];
+                    s = sin[a];
+                    a += 1 << (m - i - 1);
+
+                    for (k = j; k < n; k = k + n2) {
+                        t1 = c * x[k + n1] - s * y[k + n1];
+                        t2 = s * x[k + n1] + c * y[k + n1];
+                        x[k + n1] = x[k] - t1;
+                        y[k + n1] = y[k] - t2;
+                        x[k] = x[k] + t1;
+                        y[k] = y[k] + t2;
+                    }
+                }
+            }
+        }
+
+        public void ifft(float[] x, float[] y) {
+            if ((x.length != n) || (y.length != n)) {
+                throw new RuntimeException();
+            }
+
+            int i, j, k, n1, n2, a;
+            float c, s, t1, t2;
+
+            reverse(x, y);
+
+            // FFT
+            n1 = 0;
+            n2 = 1;
+
+            for (i = 0; i < m; i++) {
+                n1 = n2;
+                n2 = n2 + n2;
+                a = 0;
+
+                for (j = 0; j < n1; j++) {
+                    c = cos[a];
+                    s = sin[a];
+                    a += 1 << (m - i - 1);
+
+                    for (k = j; k < n; k = k + n2) {
+                        t1 = c * x[k + n1] + s * y[k + n1];
+                        t2 = s * x[k + n1] - c * y[k + n1];
+                        x[k + n1] = x[k] - t1;
+                        y[k + n1] = y[k] + t2;
+                        x[k] = x[k] + t1;
+                        y[k] = y[k] - t2;
+                    }
+                }
+            }
+        }
+
+        public void scale(float[] x, float[] y) {
+            if ((x.length != n) || (y.length != n)) {
+                throw new RuntimeException();
+            }
+
+            for (int i = 0; i < n; i++) {
+                x[i] /= n;
+                y[i] /= n;
+            }
+        }
     }
 }

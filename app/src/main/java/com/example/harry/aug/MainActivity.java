@@ -17,10 +17,9 @@ import java.util.Collections;
 import java.util.Comparator;
 
 public class MainActivity extends Activity {
+    private static final String MAIN_TAG = "Main";
     private ArrayList<Song> songList;
     private ListView songView;
-
-    private static final String MAIN_TAG = "Main";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +34,7 @@ public class MainActivity extends Activity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Intent intent = new Intent();
                 intent.setClass(MainActivity.this, PlayerActivity.class);
-                intent.putExtra("titleKey", (String) view.getTag());
+                intent.putExtra("TITLE_KEY", (String) view.getTag());
 
                 startActivity(intent);
             }
@@ -70,19 +69,8 @@ public class MainActivity extends Activity {
 
         ArrayList<Song> songList = new ArrayList<Song>();
         if(cursor.moveToFirst()) {
-            int titleKeyColumn = cursor.getColumnIndex(Media.TITLE_KEY);
-            int titleColumn = cursor.getColumnIndex(Media.TITLE);
-            int artistColumn = cursor.getColumnIndex(Media.ARTIST);
-            int durationColumn = cursor.getColumnIndex(Media.DURATION);
             do {
-                String titleKey = cursor.getString(titleKeyColumn);
-                String title = cursor.getString(titleColumn);
-                String artist = cursor.getString(artistColumn);
-                long duration = cursor.getLong(durationColumn);
-
-                if(duration < 10000) { //
-                    songList.add(new Song(titleKey, title, artist, duration));
-                }
+                songList.add(new Song(cursor));
             } while(cursor.moveToNext());
         }
         cursor.close();
@@ -90,7 +78,9 @@ public class MainActivity extends Activity {
         Collections.sort(songList, new Comparator<Song>() {
             @Override
             public int compare(Song lhs, Song rhs) {
-                return lhs.getTitle().compareTo(rhs.getTitle());
+                String titleL = (String) (lhs.get(Media.TITLE));
+                String titleR = (String) (rhs.get(Media.TITLE));
+                return titleL.compareTo(titleR);
             }
         });
 

@@ -26,10 +26,6 @@ public class Decoder extends Component implements Runnable {
         super(TAG, augManager);
     }
 
-    public long seek() {
-        return 0L; // TODO
-    }
-
     /////////////
     // PROCESS //
     /////////////
@@ -67,9 +63,7 @@ public class Decoder extends Component implements Runnable {
     }
 
     @Override
-    protected void action() {
-        super.action();
-
+    protected void operation() {
         // Input
         if(!inputEOS) {
             int inputBufferIndex = mediaCodec.dequeueInputBuffer(TIMEOUT_US);
@@ -112,7 +106,10 @@ public class Decoder extends Component implements Runnable {
         } else if(outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
             Log.d(TAG, "Output buffer drained!");
         }
+    }
 
+    @Override
+    protected void setEOS() {
         if((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
             setOutputEOS();
         }
