@@ -7,8 +7,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore.Audio.Media;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup.LayoutParams;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.concurrent.TimeUnit;
@@ -16,11 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class PlayerActivity extends Activity {
     private static final String TAG = "PlayerActivity";
 
-    private static final int UPDATE_INTERVAL = 50;
-
     private AUGManager augManager;
-    private Handler handler;
-    private TimeUpdater timeUpdater;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,28 +44,28 @@ public class PlayerActivity extends Activity {
         Song song = new Song(cursor);
         cursor.close();
 
-        augManager = new AUGManager();
+        augManager = new AUGManager(this);
         String dataSource = (String) (song.get(Media.DATA));
         augManager.setDataSource(dataSource);
         augManager.prepare();
-
-        //
-        handler = new Handler(Looper.getMainLooper());
-        timeUpdater = new TimeUpdater(augManager);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         augManager.start();
-        handler.postDelayed(timeUpdater, UPDATE_INTERVAL);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         augManager.pause();
-        handler.removeCallbacks(timeUpdater);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        augManager.stop();
     }
 
     @Override
@@ -91,22 +90,5 @@ public class PlayerActivity extends Activity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    private class TimeUpdater implements Runnable {
-        private AUGManager augManager;
-        private TextView playerTimeView;
-
-        public TimeUpdater(AUGManager augManager) {
-            this.augManager = augManager;
-            this.playerTimeView = (TextView) findViewById(R.id.player_time);
-        }
-
-        @Override
-        public void run() {
-            float time = (float) augManager.seek() / TimeUnit.SECONDS.toMicros(1);
-            playerTimeView.setText(String.format("%.1f", time));
-            handler.postDelayed(timeUpdater, UPDATE_INTERVAL);
-        }
     }
 }

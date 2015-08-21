@@ -20,6 +20,7 @@ public class PhaseVocoder extends Component implements Runnable {
 
     private Window window;
     private FFT fft;
+    private Util util;
     private FloatBuffer[] inFloatBuffer;
     private FloatBuffer[] outFloatBuffer;
     private FloatBuffer frameBuffer;
@@ -39,21 +40,57 @@ public class PhaseVocoder extends Component implements Runnable {
     private int fftHopSize;
     private long fftHopSizeUs;
 
-    /////////////////
-    // INNER CLASS //
-    /////////////////
-
     public PhaseVocoder(AUGManager augManager) {
         super(TAG, augManager);
     }
 
-    private void myLogD(String str) {
-        // Log.d(TAG, str);
+    @Override
+    public synchronized long getTime() {
+        long nextTime = next.getTime();
+        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
+        int floorNextFrame = (int) (Math.floor(nextFrame));
+        float fracNextFrame = nextFrame - floorNextFrame;
+
+        myLogD("--- [SEEK] ---");
+
+        float leftFrame;
+        float rightFrame;
+        frameBuffer.flip();
+        frameBuffer.position(floorNextFrame);
+        frameBuffer.mark();
+        leftFrame = frameBuffer.get();
+        if (frameBuffer.hasRemaining()) {
+            rightFrame = frameBuffer.get();
+        } else {
+            rightFrame = leftFrame;
+        }
+        frameBuffer.reset();
+        frameBuffer.compact();
+        removedFrame += floorNextFrame;
+
+        float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
+        long thisTime =  (long) (thisFrame * fftHopSizeUs);
+
+        //*
+        myLogD("nextTime = " + String.valueOf(nextTime));
+        myLogD("nextFrame = " + String.valueOf(nextFrame));
+        myLogD("removedFrame = " + String.valueOf(removedFrame));
+        myLogD("leftFrame = " + String.valueOf(leftFrame));
+        myLogD("rightFrame = " + String.valueOf(rightFrame));
+        myLogD("thisFrame = " + String.valueOf(thisFrame));
+        myLogD("thisTime = " + String.valueOf(thisTime));
+        //*/
+
+        return thisTime;
     }
 
     /////////
     // LOG //
     /////////
+
+    private void myLogD(String str) {
+        // Log.d(TAG, str);
+    }
 
     private void myLogComplex(float[] r, float[] t, float[] x, float[] y) {
         for(int i = 0; i < 8; i++) {
@@ -84,93 +121,9 @@ public class PhaseVocoder extends Component implements Runnable {
         }
     }
 
-    private void cart2pol(float[] r, float[] t, float[] x, float[] y) {
-        int length = x.length;
-
-        for(int i = 0; i < length; i++) {
-            r[i] = (float)(Math.sqrt(x[i] * x[i] + y[i] * y[i]));
-            t[i] = (float)(Math.atan2(y[i], x[i]));
-        }
-    }
-
     /////////////
-    // UTILITY //
+    // PROCESS //
     /////////////
-
-    private void pol2cart(float[] x, float[] y, float[] r, float[] t) {
-        int length = r.length;
-
-        for(int i = 0; i < length; i++) {
-            x[i] = r[i] * (float)(Math.cos(t[i]));
-            y[i] = r[i] * (float)(Math.sin(t[i]));
-        }
-    }
-
-    private void process(float[] r, float[] t, float[] real) {
-        float[] imag = new float[fftFrameSize];
-
-        window.window(real);
-        //myLogArray(real);
-        fft.fft(real, imag);
-        cart2pol(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
-
-        //myLogComplex(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
-    }
-
-    private void interpolate(float[] interReal, float[] leftReal, float[] rightReal, float ratio) {
-        float[] leftR = new float[fftSizeCompact];
-        float[] rightR = new float[fftSizeCompact];
-        float[] leftT = new float[fftSizeCompact];
-        float[] rightT = new float[fftSizeCompact];
-
-        //myLogD("--- [interpolate] ---");
-        //myLogD("left (time / frequency domain)");
-        process(leftR, leftT, leftReal);
-        //myLogD("right (time / frequency domain)");
-        process(rightR, rightT, rightReal);
-
-        if(phase == null) {
-            magnitude = new float[fftSizeCompact];
-            phase = Arrays.copyOf(leftT, fftSizeCompact);
-        } else {
-            for(int i = 0; i < fftSizeCompact; i++) {
-                phase[i] += (rightT[i] - leftT[i]);
-            }
-        }
-
-        for(int i = 0; i < fftSizeCompact; i++) {
-            magnitude[i] = (1 - ratio) * leftR[i] + ratio * rightR[i];
-        }
-
-        float[] interRealTrunc = new float[fftSizeCompact];
-        float[] interImagTrunc = new float[fftSizeCompact];
-
-        pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
-
-        //myLogD("inter (frequency domain)");
-        //myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
-
-        float[] interImag = new float[fftFrameSize];
-
-        for(int i = 0; i < fftSizeCompact; i++) {
-            interReal[i] = interRealTrunc[i];
-            interImag[i] = interImagTrunc[i];
-        }
-
-        for(int i = fftSizeCompact; i < fftFrameSize; i++) {
-            interReal[i] = interRealTrunc[fftFrameSize - i];
-            interImag[i] = - interImagTrunc[fftFrameSize - i];
-        }
-
-        fft.ifft(interReal, interImag);
-        fft.scale(interReal, interImag);
-
-        window.window(interReal);
-        window.scale(interReal);
-
-        //myLogD("inter (time domain)");
-        //myLogArray(interReal, 8);
-    }
 
     @Override
     protected void initializeElement() {
@@ -186,10 +139,12 @@ public class PhaseVocoder extends Component implements Runnable {
         fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
+        Log.d(TAG, "fftHopSizeUs = " + String.valueOf(fftHopSizeUs));
 
         // Utility
         fft = new FFT(fftFrameSize, fftSizeLog);
         window = new Window(fftFrameSize);
+        util = new Util();
 
         // Playback
         speed = 0.6f;
@@ -216,12 +171,10 @@ public class PhaseVocoder extends Component implements Runnable {
         frameBuffer = FloatBuffer.allocate(BUFFER_CAPACITY);
     }
 
-    /////////////
-    // PROCESS //
-    /////////////
-
     @Override
     protected void operation() {
+        super.operation();
+
         int floorFrame = (int)(Math.floor(frame));
         int ceilFrame = floorFrame + 1;
         float fracFrame = frame - floorFrame;
@@ -280,7 +233,7 @@ public class PhaseVocoder extends Component implements Runnable {
             float[] right = Arrays.copyOfRange(in, fftHopSize, fftHopSize + fftFrameSize);
             float[] inter = new float[fftFrameSize];
 
-            interpolate(inter, left, right, fracFrame);
+            util.interpolate(inter, left, right, fracFrame);
 
             float[] outTemp = new float[fftFrameSize];
 
@@ -330,44 +283,10 @@ public class PhaseVocoder extends Component implements Runnable {
         byteBuffer.get(byteBufferArray);
 
         next.queueInput(byteBufferArray);
-    }
 
-    @Override
-    protected void setTime() {
-        long nextTime = next.getTime();
-        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
-        int floorNextFrame = (int) (Math.floor(nextFrame));
-        float fracNextFrame = nextFrame - floorNextFrame;
-
-        // myLogD("--- [SEEK] ---");
-
-        float leftFrame;
-        float rightFrame;
-        frameBuffer.flip();
-        frameBuffer.position(floorNextFrame);
-        frameBuffer.mark();
-        leftFrame = frameBuffer.get();
-        if (frameBuffer.hasRemaining()) {
-            rightFrame = frameBuffer.get();
-        } else {
-            rightFrame = leftFrame;
+        if (inputEOS & inputQueue.isEmpty()) {
+            setOutputEOS();
         }
-        frameBuffer.reset();
-        frameBuffer.compact();
-        removedFrame += floorNextFrame;
-
-        float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
-        time = (long) (thisFrame * fftHopSizeUs);
-
-        /*
-        myLogD("nextTime = " + String.valueOf(nextTime));
-        myLogD("nextFrame = " + String.valueOf(nextFrame));
-        myLogD("removedFrame = " + String.valueOf(removedFrame));
-        myLogD("leftFrame = " + String.valueOf(leftFrame));
-        myLogD("rightFrame = " + String.valueOf(rightFrame));
-        myLogD("thisFrame = " + String.valueOf(thisFrame));
-        myLogD("thisTime = " + String.valueOf(thisTime));
-        */
     }
 
     @Override
@@ -376,7 +295,11 @@ public class PhaseVocoder extends Component implements Runnable {
         // TODO
     }
 
-    private static class Window {
+    /////////////////
+    // INNER CLASS //
+    /////////////////
+
+    private class Window {
         private int n;
         private float[] w;
 
@@ -409,7 +332,7 @@ public class PhaseVocoder extends Component implements Runnable {
         }
     }
 
-    private static class FFT {
+    private class FFT {
         private int n;
         private int m;
         private float[] cos;
@@ -533,6 +456,92 @@ public class PhaseVocoder extends Component implements Runnable {
                 x[i] /= n;
                 y[i] /= n;
             }
+        }
+    }
+
+    private class Util {
+        public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
+            int length = x.length;
+
+            for(int i = 0; i < length; i++) {
+                r[i] = (float)(Math.sqrt(x[i] * x[i] + y[i] * y[i]));
+                t[i] = (float)(Math.atan2(y[i], x[i]));
+            }
+        }
+
+        public void pol2cart(float[] x, float[] y, float[] r, float[] t) {
+            int length = r.length;
+
+            for(int i = 0; i < length; i++) {
+                x[i] = r[i] * (float)(Math.cos(t[i]));
+                y[i] = r[i] * (float)(Math.sin(t[i]));
+            }
+        }
+
+        public void process(float[] r, float[] t, float[] real) {
+            float[] imag = new float[fftFrameSize];
+
+            window.window(real);
+            //myLogArray(real);
+            fft.fft(real, imag);
+            cart2pol(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
+
+            //myLogComplex(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
+        }
+
+        public void interpolate(float[] interReal, float[] leftReal, float[] rightReal, float ratio) {
+            float[] leftR = new float[fftSizeCompact];
+            float[] rightR = new float[fftSizeCompact];
+            float[] leftT = new float[fftSizeCompact];
+            float[] rightT = new float[fftSizeCompact];
+
+            //myLogD("--- [interpolate] ---");
+            //myLogD("left (time / frequency domain)");
+            process(leftR, leftT, leftReal);
+            //myLogD("right (time / frequency domain)");
+            process(rightR, rightT, rightReal);
+
+            if(phase == null) {
+                magnitude = new float[fftSizeCompact];
+                phase = Arrays.copyOf(leftT, fftSizeCompact);
+            } else {
+                for(int i = 0; i < fftSizeCompact; i++) {
+                    phase[i] += (rightT[i] - leftT[i]);
+                }
+            }
+
+            for(int i = 0; i < fftSizeCompact; i++) {
+                magnitude[i] = (1 - ratio) * leftR[i] + ratio * rightR[i];
+            }
+
+            float[] interRealTrunc = new float[fftSizeCompact];
+            float[] interImagTrunc = new float[fftSizeCompact];
+
+            pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
+
+            //myLogD("inter (frequency domain)");
+            //myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
+
+            float[] interImag = new float[fftFrameSize];
+
+            for(int i = 0; i < fftSizeCompact; i++) {
+                interReal[i] = interRealTrunc[i];
+                interImag[i] = interImagTrunc[i];
+            }
+
+            for(int i = fftSizeCompact; i < fftFrameSize; i++) {
+                interReal[i] = interRealTrunc[fftFrameSize - i];
+                interImag[i] = - interImagTrunc[fftFrameSize - i];
+            }
+
+            fft.ifft(interReal, interImag);
+            fft.scale(interReal, interImag);
+
+            window.window(interReal);
+            window.scale(interReal);
+
+            //myLogD("inter (time domain)");
+            //myLogArray(interReal, 8);
         }
     }
 }

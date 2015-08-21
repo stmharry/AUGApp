@@ -19,12 +19,13 @@ public class AudioPlayer extends Component implements Runnable {
     private int bufferSize;
     private int mode;
 
-    /////////////
-    // UTILITY //
-    /////////////
-
     public AudioPlayer(AUGManager augManager) {
         super(TAG, augManager);
+    }
+
+    @Override
+    public synchronized long getTime() {
+        return (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
     }
 
     /////////////
@@ -60,18 +61,17 @@ public class AudioPlayer extends Component implements Runnable {
 
     @Override
     protected void operation() {
-        if(!inputEOS) {
+        if (!inputEOS) {
             byte[] in = dequeueInput(TIMEOUT_US);
 
-            if(in != null) {
+            if (in != null) {
                 audioTrack.write(in, 0, in.length);
             }
         }
-    }
 
-    @Override
-    protected void setTime() {
-        time = (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
+        if (inputEOS & inputQueue.isEmpty()) {
+            setOutputEOS();
+        }
     }
 
     @Override

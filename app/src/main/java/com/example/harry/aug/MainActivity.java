@@ -70,6 +70,14 @@ public class MainActivity extends Activity {
         ArrayList<Song> songList = new ArrayList<Song>();
         if(cursor.moveToFirst()) {
             do {
+                //
+
+                int durationColumn = cursor.getColumnIndex(Media.DURATION);
+                long duration = cursor.getLong(durationColumn);
+                if(duration > 6000) continue;
+
+                //
+
                 songList.add(new Song(cursor));
             } while(cursor.moveToNext());
         }

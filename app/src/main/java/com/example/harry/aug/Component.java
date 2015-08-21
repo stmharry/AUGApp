@@ -31,7 +31,6 @@ public abstract class Component implements Runnable {
     protected int sampleRate;
     protected int numChannel;
     protected long duration;
-    protected long time;
 
     /////////////
     // UTILITY //
@@ -84,8 +83,8 @@ public abstract class Component implements Runnable {
         }
     }
 
-    public long getTime() {
-        return time;
+    public synchronized long getTime() {
+        return 0;
     }
 
     /////////////
@@ -119,7 +118,7 @@ public abstract class Component implements Runnable {
                 && (augManager.getState() != AUGManager.State.STATE_STOPPED));
     }
 
-    protected void checkState() {
+    protected void operation() {
         synchronized(this) {
             switch(augManager.getState()) {
                 case STATE_PAUSED:
@@ -130,7 +129,7 @@ public abstract class Component implements Runnable {
                     }
                     break;
                 case STATE_SEEK:
-                    initializeBuffer();
+                    // initializeBuffer();
                     break;
                 default:
                     break;
@@ -138,22 +137,9 @@ public abstract class Component implements Runnable {
         }
     }
 
-    protected void operation() {
-    }
-
-    protected void setTime() {
-        time = next.getTime();
-    }
-
-    protected void setEOS() {
-        if (inputEOS & inputQueue.isEmpty()) {
-            setOutputEOS();
-        }
-    }
-
     protected void terminate() {
         if(last) {
-            augManager.setState(AUGManager.State.STATE_STOPPED);
+            augManager.stop();
         }
         Log.d(TAG, "Stopped");
     }
@@ -161,10 +147,7 @@ public abstract class Component implements Runnable {
     @Override
     public void run() {
         while(loop()) {
-            checkState();
             operation();
-            setTime();
-            setEOS();
         }
         terminate();
     }
