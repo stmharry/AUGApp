@@ -147,7 +147,7 @@ public class PhaseVocoder extends Component implements Runnable {
         util = new Util();
 
         // Playback
-        speed = 0.6f;
+        speed = 1.5f;
     }
 
     @Override

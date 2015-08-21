@@ -120,11 +120,9 @@ public class AUGManager {
             case STATE_STOPPED:
                 state = State.STATE_PLAYING;
                 for(Component component: components) {
-                    //handler.post(component);
                     (new Thread(component)).start();
                 }
-                timeUpdater.setLoop(true);
-                handler.postDelayed(timeUpdater, UPDATE_INTERVAL);
+                timeUpdater.initiate(true);
                 break;
             case STATE_PLAYING:
                 break;
@@ -134,26 +132,25 @@ public class AUGManager {
                 synchronized(this) {
                     for(Component component: components) component.notify();
                 }
-                timeUpdater.setLoop(true);
-                handler.postDelayed(timeUpdater, UPDATE_INTERVAL);
+                timeUpdater.initiate(true);
                 break;
         }
     }
 
     public void pause() {
         state = State.STATE_PAUSED;
+
         handler.removeCallbacks(timeUpdater);
-        timeUpdater.setLoop(false);
-        handler.post(timeUpdater);
+        timeUpdater.initiate(false);
     }
 
     public void stop() {
         if(state != State.STATE_STOPPED) {
             state = State.STATE_STOPPED;
             handler.removeCallbacks(timeUpdater);
-            timeUpdater.setLoop(false);
-            handler.post(timeUpdater);
+            timeUpdater.initiate(false);
         }
+        // TODO: bug
     }
 
     public void seek(long time) {
@@ -184,11 +181,11 @@ public class AUGManager {
         public TimeUpdater() {
             this.length = AUGManager.this.getComponents().length;
             this.playerTimeViews = new TextView[length];
-            this.loop = false;
         }
 
-        public void setLoop(boolean loop){
+        public void initiate(boolean loop) {
             this.loop = loop;
+            AUGManager.this.handler.postDelayed(this, UPDATE_INTERVAL);
         }
 
         @Override
