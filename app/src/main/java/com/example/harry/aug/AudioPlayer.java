@@ -8,7 +8,7 @@ import android.util.Log;
 /**
  * Created by harry on 15/8/2.
  */
-public class AudioPlayer extends Component implements Runnable {
+public class AudioPlayer extends Component {
     private static final String TAG = "AudioPlayer";
 
     private AudioTrack audioTrack;
@@ -25,7 +25,8 @@ public class AudioPlayer extends Component implements Runnable {
 
     @Override
     public synchronized long getTime() {
-        return (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
+        long thisTime = (audioTrack == null)? AUGManager.UPDATE_FAIL : (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
+        return thisTime;
     }
 
     /////////////
@@ -33,8 +34,8 @@ public class AudioPlayer extends Component implements Runnable {
     /////////////
 
     @Override
-    protected void initializeElement() {
-        super.initializeElement();
+    public void create() {
+        super.create();
 
         // Audio Track
         streamType = AudioManager.STREAM_MUSIC;
@@ -51,8 +52,8 @@ public class AudioPlayer extends Component implements Runnable {
     }
 
     @Override
-    protected void initializeBuffer() {
-        super.initializeBuffer();
+    public void start() {
+        super.start();
 
         audioTrack.pause();
         audioTrack.flush();
@@ -60,23 +61,26 @@ public class AudioPlayer extends Component implements Runnable {
     }
 
     @Override
-    protected void operation() {
-        if (!inputEOS) {
-            byte[] in = dequeueInput(TIMEOUT_US);
+    public void operation() {
+        byte[] in = dequeueInput(TIMEOUT_US);
 
-            if (in != null) {
-                audioTrack.write(in, 0, in.length);
-            }
+        if(in != null) {
+            audioTrack.write(in, 0, in.length);
         }
 
-        if (inputEOS & inputQueue.isEmpty()) {
+        if (inputEOS && inputQueue.isEmpty()) {
             setOutputEOS();
         }
     }
 
     @Override
-    protected void terminate() {
-        super.terminate();
+    public void stop() {
+        super.stop();
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
 
         if(audioTrack != null) {
             audioTrack.flush();

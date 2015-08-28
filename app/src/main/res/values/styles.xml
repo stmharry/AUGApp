@@ -1,7 +1,7 @@
 <resources>
 
     <!-- Base application theme. -->
-    <style name="AUGTheme" parent="android:Theme.Light">
+    <style name="AUGTheme" parent="Theme.AppCompat.Light">
         <!-- Customize your theme here. -->
     </style>
 

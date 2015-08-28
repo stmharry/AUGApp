@@ -32,11 +32,9 @@ public abstract class Component implements Runnable {
     protected int numChannel;
     protected long duration;
 
-    /////////////
-    // UTILITY //
-    /////////////
+    //
 
-    protected Component(String TAG, AUGManager augManager) {
+    public Component(String TAG, AUGManager augManager) {
         this.TAG = TAG;
         this.augManager = augManager;
     }
@@ -48,25 +46,6 @@ public abstract class Component implements Runnable {
         } else {
             this.last = true;
         }
-    }
-
-    public void queueInput(byte[] buffer) {
-        try {
-            inputQueue.put(buffer);
-        } catch(InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public byte[] dequeueInput(long timeoutUs) {
-        byte[] buffer;
-        try {
-            buffer = inputQueue.poll(timeoutUs, TimeUnit.MICROSECONDS);
-        } catch(InterruptedException e) {
-            e.printStackTrace();
-            return null;
-        }
-        return buffer;
     }
 
     public void setInputEOS() {
@@ -87,11 +66,30 @@ public abstract class Component implements Runnable {
         return 0;
     }
 
-    /////////////
-    // PROCESS //
-    /////////////
+    //
 
-    protected void initializeElement() {
+    public void queueInput(byte[] buffer) {
+        try {
+            inputQueue.put(buffer);
+        } catch(InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public byte[] dequeueInput(long timeoutUs) {
+        byte[] buffer;
+        try {
+            buffer = inputQueue.poll(timeoutUs, TimeUnit.MICROSECONDS);
+        } catch(InterruptedException e) {
+            e.printStackTrace();
+            return null;
+        }
+        return buffer;
+    }
+
+    //
+
+    public void create() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
 
         // Media
@@ -109,16 +107,16 @@ public abstract class Component implements Runnable {
                 + "duration = " + String.valueOf(duration));
     }
 
-    protected void initializeBuffer() {
+    public void start() {
         inputQueue = new ArrayBlockingQueue<byte[]>(BUFFER_QUEUE_CAPACITY);
     }
 
-    protected boolean loop() {
+    public boolean loop() {
         return (!outputEOS
                 && (augManager.getState() != AUGManager.State.STATE_STOPPED));
     }
 
-    protected void operation() {
+    public void operation() {
         synchronized(this) {
             switch(augManager.getState()) {
                 case STATE_PAUSED:
@@ -128,27 +126,31 @@ public abstract class Component implements Runnable {
                         e.printStackTrace();
                     }
                     break;
-                case STATE_SEEK:
-                    // initializeBuffer();
-                    break;
                 default:
                     break;
             }
         }
     }
 
-    protected void terminate() {
+    public void stop() {
+        Log.d(TAG, "Stop");
         if(last) {
+            augManager.pause();
             augManager.stop();
         }
-        Log.d(TAG, "Stopped");
     }
+
+    public void destroy() {
+        Log.d(TAG, "Destroy");
+    }
+
+    //
 
     @Override
     public void run() {
         while(loop()) {
             operation();
         }
-        terminate();
+        stop();
     }
 }

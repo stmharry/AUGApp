@@ -17,8 +17,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class AUGManager {
     private static final String TAG = "AUGManager";
-
     private static final int UPDATE_INTERVAL = 50;
+
+    public static final int UPDATE_FAIL = -1;
 
     private Activity activity;
     private State state;
@@ -26,6 +27,7 @@ public class AUGManager {
     private Component[] components;
     private Handler handler;
     private TimeUpdater timeUpdater;
+    private Destroyer destroyer;
 
     public AUGManager(Activity activity) {
         this.activity = activity;
@@ -38,43 +40,21 @@ public class AUGManager {
 
         this.handler = new Handler(Looper.getMainLooper());
         this.timeUpdater = new TimeUpdater();
+        this.destroyer = new Destroyer();
 
         for(int i = 0; i < components.length; i++) {
             components[i].setNext((i != components.length - 1)? components[i + 1] : null);
         }
     }
 
-    /////////////
-    // UTILITY //
-    /////////////
+    //
 
     public State getState() {
         return state;
     }
 
-    public void setState(State state) {
-        String str;
-        switch(state) {
-            case STATE_STOPPED: str = "STATE_STOPPED"; break;
-            case STATE_PLAYING: str = "STATE_PLAYING"; break;
-            case STATE_PAUSED: str = "STATE_PAUSED"; break;
-            default: str = "STATE_ERROR"; break;
-        }
-        Log.d(TAG, "State = " + str);
-
-        this.state = state;
-    }
-
     public MediaExtractor getMediaExtractor() {
         return mediaExtractor;
-    }
-
-    public Component[] getComponents() {
-        return components;
-    }
-
-    public Component getComponent(int i) {
-        return components[i];
     }
 
     public void setDataSource(String dataSource) {
@@ -102,16 +82,21 @@ public class AUGManager {
         } catch(Exception e) {
             Log.e(TAG, "Media format error: " + e.getMessage());
         }
+
+        // TODO: remove this in the future
+        LinearLayout playerTimeLayout = (LinearLayout) activity.findViewById(R.id.player);
+        TextView playerTimeView = new TextView(activity);
+        playerTimeLayout.addView(playerTimeView);
+        float time = (float) mediaExtractor.getTrackFormat(0).getLong(MediaFormat.KEY_DURATION) / TimeUnit.SECONDS.toMicros(1);
+        playerTimeView.setText(String.format("All: %.2f s", time));
     }
 
-    /////////////
-    // PROCESS //
-    /////////////
+    //
 
     public void prepare() {
         for(Component component: components) {
-            component.initializeElement();
-            component.initializeBuffer();
+            component.create();
+            component.start();
         }
     }
 
@@ -124,53 +109,51 @@ public class AUGManager {
                 }
                 timeUpdater.initiate(true);
                 break;
-            case STATE_PLAYING:
-                break;
             case STATE_PAUSED:
                 state = State.STATE_PLAYING;
-
                 synchronized(this) {
                     for(Component component: components) component.notify();
                 }
                 timeUpdater.initiate(true);
                 break;
+            default:
+                break;
         }
     }
 
     public void pause() {
-        state = State.STATE_PAUSED;
+        Log.d(TAG, "Pause");
+        if(state == State.STATE_PLAYING) {
+            state = State.STATE_PAUSED;
 
-        handler.removeCallbacks(timeUpdater);
-        timeUpdater.initiate(false);
+            timeUpdater.terminate();
+            timeUpdater.initiate(false);
+        }
     }
 
     public void stop() {
+        Log.d(TAG, "Stop");
         if(state != State.STATE_STOPPED) {
             state = State.STATE_STOPPED;
-            handler.removeCallbacks(timeUpdater);
-            timeUpdater.initiate(false);
+
+            destroyer.initiate();
         }
-        // TODO: bug
     }
 
     public void seek(long time) {
         mediaExtractor.seekTo(time, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
-        state = State.STATE_SEEK;
     }
 
     public long seek() {
         return components[0].getTime();
     }
 
-    /////////////////
-    // INNER CLASS //
-    /////////////////
+    //
 
     public enum State {
         STATE_STOPPED,
         STATE_PLAYING,
-        STATE_PAUSED,
-        STATE_SEEK
+        STATE_PAUSED
     }
 
     private class TimeUpdater implements Runnable {
@@ -179,33 +162,56 @@ public class AUGManager {
         private boolean loop;
 
         public TimeUpdater() {
-            this.length = AUGManager.this.getComponents().length;
+            this.length = AUGManager.this.components.length;
             this.playerTimeViews = new TextView[length];
         }
 
         public void initiate(boolean loop) {
+            Log.d(TAG, "Initiate TimeUpdater with loop = " + String.valueOf(loop));
             this.loop = loop;
-            AUGManager.this.handler.postDelayed(this, UPDATE_INTERVAL);
+            AUGManager.this.handler.post(this);
+        }
+
+        public void terminate() {
+            AUGManager.this.handler.removeCallbacks(this);
         }
 
         @Override
         public void run() {
             LinearLayout playerTimeLayout = (LinearLayout) activity.findViewById(R.id.player);
 
-            for(int i = 0; i < length; i++) {
-                float time = (float) AUGManager.this.getComponent(i).getTime() / TimeUnit.SECONDS.toMicros(1);
+            for (int i = 0; i < length; i++) {
+                long timeUs = AUGManager.this.components[i].getTime();
+                if(timeUs == AUGManager.UPDATE_FAIL) {
+                    continue;
+                }
+                float time = (float) timeUs / TimeUnit.SECONDS.toMicros(1);
                 if(playerTimeViews[i] == null) {
-                    playerTimeViews[i] = new TextView(activity);
+                    playerTimeViews[i] = new TextView(AUGManager.this.activity);
                     playerTimeViews[i].setLayoutParams(new ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT));
-                    playerTimeLayout.addView(playerTimeViews[i], i);
+                    playerTimeLayout.addView(playerTimeViews[i]);
                 }
                 playerTimeViews[i].setText(String.format("Component %d: %.2f s", i, time));
             }
 
             if(loop) {
                 AUGManager.this.handler.postDelayed(timeUpdater, UPDATE_INTERVAL);
+            }
+        }
+    }
+
+    private class Destroyer implements Runnable {
+        public void initiate() {
+            Log.d(TAG, "Initiate Destroyer");
+            AUGManager.this.handler.post(this);
+        }
+
+        @Override
+        public void run() {
+            for(Component component: components) {
+                component.destroy();
             }
         }
     }

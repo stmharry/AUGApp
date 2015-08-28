@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="drawer_content_major_weight_closed">100</integer>
+    <integer name="drawer_content_major_weight_open">90</integer>
+    <integer name="drawer_content_minor_weight_closed">0</integer>
+    <integer name="drawer_content_minor_weight_open">10</integer>
+</resources>

@@ -16,16 +16,16 @@ import java.util.ArrayList;
  * Created by harry on 15/7/24.
  */
 public class SongAdapter extends BaseAdapter {
-    private ArrayList<Song> songList;
+    private SongManager songManager;
     private LayoutInflater songInflater;
 
-    public SongAdapter(Context c, ArrayList<Song> songList) {
-        this.songList = songList;
+    public SongAdapter(Context c, SongManager songManager) {
+        this.songManager = songManager;
         this.songInflater = LayoutInflater.from(c);
     }
 
     @Override
-    public int getCount() { return songList.size(); }
+    public int getCount() { return songManager.getSongList().size(); }
 
     @Override
     public Object getItem(int arg0) { return null; }
@@ -40,12 +40,12 @@ public class SongAdapter extends BaseAdapter {
         TextView artistView = (TextView) songLayout.findViewById(R.id.song_artist);
         TextView durationView = (TextView) songLayout.findViewById(R.id.song_duration);
 
-        Song song = songList.get(position);
+        SongManager.Song song = songManager.getSongList().get(position);
         titleView.setText((String) (song.get(Media.TITLE)));
         artistView.setText((String) (song.get(Media.ARTIST)));
 
         Time time = new Time();
-        time.set((long) (song.get(Media.DURATION)));
+        time.set((long)(song.get(Media.DURATION)));
         durationView.setText(time.format("%M:%S"));
 
         songLayout.setTag(song.get(Media.TITLE_KEY));

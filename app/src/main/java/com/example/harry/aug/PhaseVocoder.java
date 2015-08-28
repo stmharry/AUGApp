@@ -11,7 +11,7 @@ import java.util.Arrays;
 /**
  * Created by harry on 15/8/2.
  */
-public class PhaseVocoder extends Component implements Runnable {
+public class PhaseVocoder extends Component {
     private static final String TAG = "PhaseVocoder";
 
     private static final int BUFFER_CAPACITY = 4096;
@@ -47,39 +47,38 @@ public class PhaseVocoder extends Component implements Runnable {
     @Override
     public synchronized long getTime() {
         long nextTime = next.getTime();
+        if(nextTime == AUGManager.UPDATE_FAIL) {
+            return AUGManager.UPDATE_FAIL;
+        }
         float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
         int floorNextFrame = (int) (Math.floor(nextFrame));
         float fracNextFrame = nextFrame - floorNextFrame;
 
         myLogD("--- [SEEK] ---");
+        myLogD("nextTime = " + String.valueOf(nextTime));
+        myLogD("nextFrame = " + String.valueOf(nextFrame));
+        myLogD("removedFrame = " + String.valueOf(removedFrame));
 
         float leftFrame;
         float rightFrame;
         frameBuffer.flip();
         frameBuffer.position(floorNextFrame);
         frameBuffer.mark();
-        leftFrame = frameBuffer.get();
-        if (frameBuffer.hasRemaining()) {
-            rightFrame = frameBuffer.get();
-        } else {
-            rightFrame = leftFrame;
-        }
+
+        leftFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : 0;
+        rightFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : leftFrame;
+        myLogD("leftFrame = " + String.valueOf(leftFrame));
+        myLogD("rightFrame = " + String.valueOf(rightFrame));
+
         frameBuffer.reset();
         frameBuffer.compact();
         removedFrame += floorNextFrame;
 
         float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
-        long thisTime =  (long) (thisFrame * fftHopSizeUs);
+        long thisTime = (long) (thisFrame * fftHopSizeUs);
 
-        //*
-        myLogD("nextTime = " + String.valueOf(nextTime));
-        myLogD("nextFrame = " + String.valueOf(nextFrame));
-        myLogD("removedFrame = " + String.valueOf(removedFrame));
-        myLogD("leftFrame = " + String.valueOf(leftFrame));
-        myLogD("rightFrame = " + String.valueOf(rightFrame));
         myLogD("thisFrame = " + String.valueOf(thisFrame));
         myLogD("thisTime = " + String.valueOf(thisTime));
-        //*/
 
         return thisTime;
     }
@@ -126,8 +125,8 @@ public class PhaseVocoder extends Component implements Runnable {
     /////////////
 
     @Override
-    protected void initializeElement() {
-        super.initializeElement();
+    public void create() {
+        super.create();
 
         // FFT
         fftFrameSize = (int)(sampleRate * FFT_TIME);
@@ -151,8 +150,8 @@ public class PhaseVocoder extends Component implements Runnable {
     }
 
     @Override
-    protected void initializeBuffer() {
-        super.initializeBuffer();
+    public void start() {
+        super.start();
 
         // Record
         frame = 0;
@@ -172,7 +171,7 @@ public class PhaseVocoder extends Component implements Runnable {
     }
 
     @Override
-    protected void operation() {
+    public void operation() {
         super.operation();
 
         int floorFrame = (int)(Math.floor(frame));
@@ -284,15 +283,19 @@ public class PhaseVocoder extends Component implements Runnable {
 
         next.queueInput(byteBufferArray);
 
-        if (inputEOS & inputQueue.isEmpty()) {
+        if (inputEOS && inputQueue.isEmpty()) {
             setOutputEOS();
         }
     }
 
     @Override
-    protected void terminate() {
-        super.terminate();
-        // TODO
+    public void stop() {
+        super.stop();
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
     }
 
     /////////////////

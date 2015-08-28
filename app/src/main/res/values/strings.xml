@@ -1,7 +1,15 @@
 <resources>
     <string name="app_name">AUG</string>
-
-    <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+
     <string name="title_activity_player">PlayerActivity</string>
+    <string name="title_activity_aug">AUGActivity</string>
+
+    <string name="drawer_open">Open</string>
+    <string name="drawer_close">Close</string>
+
+    <string name="fragment_list">My music</string>
+    <string name="fragment_player">AUG player</string>
+        <string name="fragment_player_title_key">titleKey</string>
+    <string name="fragment_analyzer">Beat analyzer</string>
 </resources>

@@ -8,7 +8,7 @@ import java.nio.ByteBuffer;
 /**
  * Created by harry on 15/8/2.
  */
-public class Decoder extends Component implements Runnable {
+public class Decoder extends Component {
     private static final String TAG = "Decoder";
 
     private MediaCodec mediaCodec;
@@ -24,7 +24,8 @@ public class Decoder extends Component implements Runnable {
 
     @Override
     public synchronized long getTime() {
-        return next.getTime();
+        long nextTime = next.getTime();
+        return (nextTime == AUGManager.UPDATE_FAIL)? AUGManager.UPDATE_FAIL : nextTime;
     }
 
     /////////////
@@ -32,8 +33,8 @@ public class Decoder extends Component implements Runnable {
     /////////////
 
     @Override
-    protected void initializeElement() {
-        super.initializeElement();
+    public void create() {
+        super.create();
 
         // Media Codec
         try {
@@ -51,7 +52,7 @@ public class Decoder extends Component implements Runnable {
     }
 
     @Override
-    protected void initializeBuffer() {
+    public void start() {
         mediaCodec.flush();
 
         inputBuffers = mediaCodec.getInputBuffers();
@@ -59,7 +60,7 @@ public class Decoder extends Component implements Runnable {
     }
 
     @Override
-    protected void operation() {
+    public void operation() {
         super.operation();
 
         // Input
@@ -111,8 +112,13 @@ public class Decoder extends Component implements Runnable {
     }
 
     @Override
-    protected void terminate() {
-        super.terminate();
+    public void stop() {
+        super.stop();
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
 
         if(mediaCodec != null) {
             mediaCodec.stop();
