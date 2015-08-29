@@ -5,7 +5,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 
-public class ListFragment extends BaseFragment {
+public class ListFragment extends AUGFragment {
     private static final String TAG = "ListFragment";
     private static final int LAYOUT_RESOURCE = R.layout.fragment_list;
     private static final int NAME_RESOURCE = R.string.fragment_list;
@@ -38,7 +38,7 @@ public class ListFragment extends BaseFragment {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             augActivity.getSongManager().setTitleKeyToPlay((String) view.getTag());
-            augActivity.replaceLayout(AUGActivity.AUG_LAYOUT_MAJOR, AUGActivity.AUG_FRAGMENT_PLAYER);
+            augActivity.replaceLayout(augActivity.AUG_LAYOUT_MAJOR, augActivity.AUG_FRAGMENT_PLAYER);
         }
     }
 }

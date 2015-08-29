@@ -6,8 +6,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-public class BaseFragment extends Fragment {
-    private static final String TAG = "BaseFragment";
+public class AUGFragment extends Fragment {
+    private static final String TAG = "AUGFragment";
 
     protected AUGActivity augActivity;
     protected int layoutResource;

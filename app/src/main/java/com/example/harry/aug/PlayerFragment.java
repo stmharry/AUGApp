@@ -3,7 +3,7 @@ package com.example.harry.aug;
 import android.os.Bundle;
 import android.provider.MediaStore;
 
-public class PlayerFragment extends BaseFragment {
+public class PlayerFragment extends AUGFragment {
     private static final String TAG = "PlayerFragment";
     private static final int LAYOUT_RESOURCE = R.layout.fragment_player;
     private static final int NAME_RESOURCE = R.string.fragment_player;

@@ -14,7 +14,7 @@ import java.util.Map;
  * Created by harry on 8/27/15.
  */
 public class SongManager {
-    private static final int TITLE_KEY_RESOURCE = R.string.fragment_player_title_key;
+    private static final String TITLE_KEY = "TITLE_KEY";
     private static final String[] FIELD = new String[]{
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.TITLE_KEY,
@@ -49,12 +49,12 @@ public class SongManager {
 
     public void loadTitleKeyToPlay() {
         titleKeyToPlay = augActivity.getPreferences(Context.MODE_PRIVATE).getString(
-                augActivity.getString(TITLE_KEY_RESOURCE),
+                TITLE_KEY,
                 (String) songList.get(0).get(MediaStore.Audio.Media.TITLE_KEY));
     }
 
     public void saveTitleKeyToPlay() {
-        augActivity.getPreferences(Context.MODE_PRIVATE).edit().putString(augActivity.getString(TITLE_KEY_RESOURCE), titleKeyToPlay).apply();
+        augActivity.getPreferences(Context.MODE_PRIVATE).edit().putString(TITLE_KEY, titleKeyToPlay).apply();
     }
 
     public Song getSongToPlay() {

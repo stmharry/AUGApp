@@ -2,7 +2,7 @@ package com.example.harry.aug;
 
 import android.os.Bundle;
 
-public class AnalyzerFragment extends BaseFragment {
+public class AnalyzerFragment extends AUGFragment {
     private static final String TAG = "AnalyzerFragment";
     private static final int LAYOUT_RESOURCE = R.layout.fragment_analyzer;
     private static final int NAME_RESOURCE = R.string.fragment_analyzer;

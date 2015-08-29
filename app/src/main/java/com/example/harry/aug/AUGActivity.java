@@ -19,24 +19,31 @@ import android.widget.ListView;
 public class AUGActivity extends AppCompatActivity {
     private static final String TAG = "AUGActivity";
 
-    public static final int
-            AUG_LAYOUT_MAJOR = 0,
-            AUG_LAYOUT_MINOR = 1;
+    public AUGLayout
+            AUG_LAYOUT_MAJOR,
+            AUG_LAYOUT_MINOR;
 
-    public static BaseFragment
-            AUG_FRAGMENT_MAJOR_CUR,
+    public final AUGLayout[] AUG_LAYOUT = new AUGLayout[] {
+            AUG_LAYOUT_MAJOR = new AUGLayout(R.id.drawer_content_major, R.integer.drawer_content_major_weight_open, R.integer.drawer_content_major_weight_closed),
+            AUG_LAYOUT_MINOR = new AUGLayout(R.id.drawer_content_minor, R.integer.drawer_content_minor_weight_open, R.integer.drawer_content_minor_weight_closed),
+    };
+
+    public AUGFragment
+            AUG_FRAGMENT_MAJOR_CURRENT,
             AUG_FRAGMENT_ROOT,
             AUG_FRAGMENT_LIST,
             AUG_FRAGMENT_PLAYER,
-            AUG_FRAGMENT_MINOR_CUR,
+            AUG_FRAGMENT_MINOR_CURRENT,
             AUG_FRAGMENT_ANALYZER;
 
-    private static final BaseFragment[] AUG_FRAGMENT_MAJOR = new BaseFragment[] {
+    private final AUGFragment[] AUG_FRAGMENT_MAJOR = new AUGFragment[] {
             AUG_FRAGMENT_ROOT = AUG_FRAGMENT_LIST = ListFragment.newInstance(),
             AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance()};
 
-    private static final BaseFragment[] AUG_FRAGMENT_MINOR = new BaseFragment[] {
+    private final AUGFragment[] AUG_FRAGMENT_MINOR = new AUGFragment[] {
             AUG_FRAGMENT_ANALYZER = AnalyzerFragment.newInstance()};
+
+    //
 
     private CharSequence appName;
     private FragmentManager fragmentManager;
@@ -59,7 +66,7 @@ public class AUGActivity extends AppCompatActivity {
 
     //
 
-    private String getName(BaseFragment fragment) {
+    private String getName(AUGFragment fragment) {
         return getString(fragment.getTitleResource());
     }
 
@@ -71,40 +78,30 @@ public class AUGActivity extends AppCompatActivity {
         return drawerListName;
     }
 
-    private void setLayout(int drawerContentResource, boolean isClosed, int drawerContentWeightClosedResource, int drawerContentWeightOpenResource) {
-        findViewById(drawerContentResource).setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                getResources().getInteger(isClosed? drawerContentWeightClosedResource : drawerContentWeightOpenResource)));
-
-    }
-
-    public void replaceLayout(int layout, BaseFragment fragment) {
-        BaseFragment AUG_FRAGMENT_CUR = null;
+    public void replaceLayout(AUGLayout layout, AUGFragment fragment) {
+        AUGFragment AUG_FRAGMENT_CUR = null;
         int drawerContentResource = 0;
 
-        switch(layout) {
-            case AUG_LAYOUT_MAJOR:
-                AUG_FRAGMENT_CUR = AUG_FRAGMENT_MAJOR_CUR;
-                AUG_FRAGMENT_MAJOR_CUR = fragment;
-                drawerContentResource = R.id.drawer_content_major;
-                //
-                drawerLayout.closeDrawer(drawerListView);
-                actionBarTitle = getName(fragment);
-                actionBar.setTitle(actionBarTitle);
-                break;
-            case AUG_LAYOUT_MINOR:
-                AUG_FRAGMENT_CUR = AUG_FRAGMENT_MINOR_CUR;
-                AUG_FRAGMENT_MINOR_CUR = fragment;
-                drawerContentResource = R.id.drawer_content_minor;
-                //
-                boolean isClosed = (fragment == null);
-                setLayout(R.id.drawer_content_major, isClosed, R.integer.drawer_content_major_weight_closed, R.integer.drawer_content_major_weight_open);
-                setLayout(R.id.drawer_content_minor, isClosed, R.integer.drawer_content_minor_weight_closed, R.integer.drawer_content_minor_weight_open);
-                if(isClosed) {
-                    return;
-                }
-                break;
+        if(layout == AUG_LAYOUT_MAJOR) {
+            AUG_FRAGMENT_CUR = AUG_FRAGMENT_MAJOR_CURRENT;
+            AUG_FRAGMENT_MAJOR_CURRENT = fragment;
+            drawerContentResource = R.id.drawer_content_major;
+            //
+            drawerLayout.closeDrawer(drawerListView);
+            actionBarTitle = getName(fragment);
+            actionBar.setTitle(actionBarTitle);
+        } else if(layout == AUG_LAYOUT_MINOR) {
+            AUG_FRAGMENT_CUR = AUG_FRAGMENT_MINOR_CURRENT;
+            AUG_FRAGMENT_MINOR_CURRENT = fragment;
+            drawerContentResource = R.id.drawer_content_minor;
+            //
+            boolean isOpen = (fragment != null);
+            for(AUGLayout augLayout: AUG_LAYOUT) {
+                augLayout.set(isOpen);
+            }
+            if(!isOpen) {
+                return;
+            }
         }
 
         if(fragment != AUG_FRAGMENT_CUR) {
@@ -176,15 +173,34 @@ public class AUGActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if(AUG_FRAGMENT_MAJOR_CUR == AUG_FRAGMENT_ROOT) {
+        if(AUG_FRAGMENT_MAJOR_CURRENT == AUG_FRAGMENT_ROOT) {
             finish();
         } else {
-            AUG_FRAGMENT_MAJOR_CUR = AUG_FRAGMENT_ROOT;
+            AUG_FRAGMENT_MAJOR_CURRENT = AUG_FRAGMENT_ROOT;
             fragmentManager.beginTransaction().replace(R.id.drawer_content_major, AUG_FRAGMENT_ROOT).commit();
         }
     }
 
     //
+
+    public class AUGLayout {
+        private int drawerContentResource;
+        private int drawerContentWeightOpenResource;
+        private int drawerContentWeightClosedResource;
+
+        public AUGLayout(int drawerContentResource, int drawerContentWeightOpenResource, int drawerContentWeightClosedResource) {
+            this.drawerContentResource = drawerContentResource;
+            this.drawerContentWeightOpenResource = drawerContentWeightOpenResource;
+            this.drawerContentWeightClosedResource = drawerContentWeightClosedResource;
+        }
+
+        public void set(boolean isOpen) {
+            findViewById(drawerContentResource).setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    getResources().getInteger(isOpen? drawerContentWeightOpenResource : drawerContentWeightClosedResource)));
+        }
+    }
 
     private class AUGActionBarDrawerToggle extends ActionBarDrawerToggle {
         public AUGActionBarDrawerToggle(Activity activity, DrawerLayout drawerLayout, int openDrawerContentDescRes, int closeDrawerContentDescRes) {
