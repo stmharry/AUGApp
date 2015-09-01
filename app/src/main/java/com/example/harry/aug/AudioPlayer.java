@@ -19,8 +19,12 @@ public class AudioPlayer extends Component {
     private int bufferSize;
     private int mode;
 
-    public AudioPlayer(AUGManager augManager) {
-        super(TAG, augManager);
+    public static AudioPlayer newInstance() {
+        return new AudioPlayer();
+    }
+
+    public AudioPlayer() {
+        super(TAG);
     }
 
     @Override

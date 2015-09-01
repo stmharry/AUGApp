@@ -18,8 +18,12 @@ public class Decoder extends Component {
 
     private int percentage;
 
-    public Decoder(AUGManager augManager) {
-        super(TAG, augManager);
+    public static Decoder newInstance() {
+        return new Decoder();
+    }
+
+    public Decoder() {
+        super(TAG);
     }
 
     @Override

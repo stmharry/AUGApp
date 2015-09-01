@@ -28,8 +28,12 @@ public class PlayerFragment extends AUGFragment {
         super.onActivityCreated(savedInstanceState);
 
         SongManager.Song song = augActivity.getSongManager().getSongToPlay();
+        Component[] components = new Component[]{
+                Decoder.newInstance(),
+                PhaseVocoder.newInstance(),
+                AudioPlayer.newInstance()};
 
-        augManager = new AUGManager(augActivity);
+        augManager = new AUGManager(augActivity, components);
         augManager.setDataSource((String) (song.get(MediaStore.Audio.Media.DATA)));
         augManager.prepare();
     }

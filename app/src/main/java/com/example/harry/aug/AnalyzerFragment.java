@@ -7,6 +7,8 @@ public class AnalyzerFragment extends AUGFragment {
     private static final int LAYOUT_RESOURCE = R.layout.fragment_analyzer;
     private static final int NAME_RESOURCE = R.string.fragment_analyzer;
 
+    private AUGManager augManager;
+
     //
 
     public static AnalyzerFragment newInstance() {
@@ -23,5 +25,11 @@ public class AnalyzerFragment extends AUGFragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+
+        Component[] components = new Component[]{
+                Decoder.newInstance(),
+                LabROSAAnalyzer.newInstance()};
+
+        augManager = new AUGManager(augActivity, components);
     }
 }

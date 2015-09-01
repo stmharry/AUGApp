@@ -40,8 +40,12 @@ public class PhaseVocoder extends Component {
     private int fftHopSize;
     private long fftHopSizeUs;
 
-    public PhaseVocoder(AUGManager augManager) {
-        super(TAG, augManager);
+    public static PhaseVocoder newInstance() {
+        return new PhaseVocoder();
+    }
+
+    public PhaseVocoder() {
+        super(TAG);
     }
 
     @Override

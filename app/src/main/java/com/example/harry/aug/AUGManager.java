@@ -21,7 +21,7 @@ public class AUGManager {
 
     public static final int UPDATE_FAIL = -1;
 
-    private Activity activity;
+    private AUGActivity activity;
     private State state;
     private MediaExtractor mediaExtractor;
     private Component[] components;
@@ -29,20 +29,24 @@ public class AUGManager {
     private TimeUpdater timeUpdater;
     private Destroyer destroyer;
 
-    public AUGManager(Activity activity) {
+    public AUGManager(AUGActivity activity, Component[] components) {
         this.activity = activity;
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
+        this.components = components;
+        /*
         this.components = new Component[]{
                 new Decoder(this),
                 new PhaseVocoder(this),
                 new AudioPlayer(this)};
+                */
 
         this.handler = new Handler(Looper.getMainLooper());
         this.timeUpdater = new TimeUpdater();
         this.destroyer = new Destroyer();
 
         for(int i = 0; i < components.length; i++) {
+            components[i].setAugManager(this);
             components[i].setNext((i != components.length - 1)? components[i + 1] : null);
         }
     }

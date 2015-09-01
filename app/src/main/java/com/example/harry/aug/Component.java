@@ -34,8 +34,11 @@ public abstract class Component implements Runnable {
 
     //
 
-    public Component(String TAG, AUGManager augManager) {
+    public Component(String TAG) {
         this.TAG = TAG;
+    }
+
+    public void setAugManager(AUGManager augManager) {
         this.augManager = augManager;
     }
 
