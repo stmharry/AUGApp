@@ -15,12 +15,20 @@ import java.util.Map;
  */
 public class SongManager {
     private static final String TITLE_KEY = "TITLE_KEY";
-    private static final String[] FIELD = new String[]{
-            MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.TITLE_KEY,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.DURATION};
+    private static final String BPM = "BPM";
+
+    public static String
+            FIELD_DATA,
+            FIELD_TITLE_KEY,
+            FIELD_TITLE,
+            FIELD_ARTIST,
+            FIELD_DURATION;
+    private static final String[] FIELD = new String[] {
+            FIELD_DATA      = MediaStore.Audio.Media.DATA,
+            FIELD_TITLE_KEY = MediaStore.Audio.Media.TITLE_KEY,
+            FIELD_TITLE     = MediaStore.Audio.Media.TITLE,
+            FIELD_ARTIST    = MediaStore.Audio.Media.ARTIST,
+            FIELD_DURATION  = MediaStore.Audio.Media.DURATION};
 
     private AUGActivity augActivity;
     private ArrayList<Song> songList;
@@ -50,7 +58,7 @@ public class SongManager {
     public void loadTitleKeyToPlay() {
         titleKeyToPlay = augActivity.getPreferences(Context.MODE_PRIVATE).getString(
                 TITLE_KEY,
-                (String) songList.get(0).get(MediaStore.Audio.Media.TITLE_KEY));
+                (String) songList.get(0).get(FIELD_TITLE_KEY));
     }
 
     public void saveTitleKeyToPlay() {
@@ -59,7 +67,16 @@ public class SongManager {
 
     public Song getSongToPlay() {
         for(Song song: songList) {
-            if(titleKeyToPlay.equals(song.get(MediaStore.Audio.Media.TITLE_KEY))) {
+            if(titleKeyToPlay.equals(song.get(FIELD_TITLE_KEY))) {
+                return song;
+            }
+        }
+        return null;
+    }
+
+    public Song getSongToAnalyze() {
+        for(Song song: songList) {
+            if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {
                 return song;
             }
         }
@@ -74,7 +91,7 @@ public class SongManager {
             do {
                 //
 
-                int durationColumn = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION);
+                int durationColumn = cursor.getColumnIndex(FIELD_DURATION);
                 long duration = cursor.getLong(durationColumn);
                 if(duration > 6000) continue; // TODO: remove this constraint
 
@@ -96,10 +113,10 @@ public class SongManager {
         public Song(Cursor cursor) {
             map = new HashMap<>(FIELD.length);
 
-            for (String field : FIELD) {
+            for(String field : FIELD) {
                 int column = cursor.getColumnIndex(field);
 
-                switch (cursor.getType(column)) {
+                switch(cursor.getType(column)) {
                     case Cursor.FIELD_TYPE_INTEGER:
                         map.put(field, cursor.getLong(column));
                         break;
@@ -124,8 +141,8 @@ public class SongManager {
     private class SongComparator implements Comparator<Song> {
         @Override
         public int compare(Song lhs, Song rhs) {
-            String titleL = (String) (lhs.get(MediaStore.Audio.Media.TITLE));
-            String titleR = (String) (rhs.get(MediaStore.Audio.Media.TITLE));
+            String titleL = (String) (lhs.get(FIELD_TITLE));
+            String titleR = (String) (rhs.get(FIELD_TITLE));
             return titleL.compareTo(titleR);
         }
     }

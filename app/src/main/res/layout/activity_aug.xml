@@ -23,7 +23,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="@integer/drawer_content_minor_weight_closed"
-            android:background="@android:color/black">
+            android:background="@android:color/darker_gray">
             <!-- TODO -->
 
         </FrameLayout>

@@ -23,7 +23,7 @@ public class AUGActivity extends AppCompatActivity {
             AUG_LAYOUT_MAJOR,
             AUG_LAYOUT_MINOR;
 
-    public final AUGLayout[] AUG_LAYOUT = new AUGLayout[] {
+    private final AUGLayout[] AUG_LAYOUT = new AUGLayout[] {
             AUG_LAYOUT_MAJOR = new AUGLayout(R.id.drawer_content_major, R.integer.drawer_content_major_weight_open, R.integer.drawer_content_major_weight_closed),
             AUG_LAYOUT_MINOR = new AUGLayout(R.id.drawer_content_minor, R.integer.drawer_content_minor_weight_open, R.integer.drawer_content_minor_weight_closed),
     };

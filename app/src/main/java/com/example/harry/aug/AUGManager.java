@@ -87,11 +87,14 @@ public class AUGManager {
         }
 
         // TODO: remove this in the future
+
         LinearLayout playerTimeLayout = (LinearLayout) activity.findViewById(R.id.player);
-        TextView playerTimeView = new TextView(activity);
-        playerTimeLayout.addView(playerTimeView);
-        float time = (float) mediaExtractor.getTrackFormat(0).getLong(MediaFormat.KEY_DURATION) / TimeUnit.SECONDS.toMicros(1);
-        playerTimeView.setText(String.format("All: %.2f s", time));
+        if(playerTimeLayout != null) {
+            TextView playerTimeView = new TextView(activity);
+            playerTimeLayout.addView(playerTimeView);
+            float time = (float) mediaExtractor.getTrackFormat(0).getLong(MediaFormat.KEY_DURATION) / TimeUnit.SECONDS.toMicros(1);
+            playerTimeView.setText(String.format("All: %.2f s", time));
+        }
     }
 
     //
@@ -182,6 +185,10 @@ public class AUGManager {
         @Override
         public void run() {
             LinearLayout playerTimeLayout = (LinearLayout) activity.findViewById(R.id.player);
+
+            if(playerTimeLayout == null) {
+                return;
+            }
 
             for (int i = 0; i < length; i++) {
                 long timeUs = AUGManager.this.AUGComponents[i].getTime();

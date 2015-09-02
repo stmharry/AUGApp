@@ -1,7 +1,5 @@
 package com.example.harry.aug;
 
-import android.util.Log;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -14,12 +12,11 @@ import java.util.Arrays;
 public class PhaseVocoderAnalyzer extends Analyzer {
     private static final String TAG = "PhaseVocoderAnalyzer";
 
+    private static final int BUFFER_CAPACITY = 4096;
+    private static final float FFT_TIME = 0.01f;
+    private static final int HOP_RATIO = 4;
 
-
-    private Window window;
-    private FFT fft;
     private Util util;
-    private FloatBuffer[] inFloatBuffer;
     private FloatBuffer[] outFloatBuffer;
     private FloatBuffer frameBuffer;
 
@@ -29,22 +26,16 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private float speed;
     private float frame;
     private int removedFrame;
-    private int startSample;
-    private int endSample;
-
-    private int fftFrameSize;
-    private int fftSizeLog;
-    private int fftSizeCompact;
-    private int fftHopSize;
-    private long fftHopSizeUs;
 
     public static PhaseVocoderAnalyzer newInstance() {
         return new PhaseVocoderAnalyzer();
     }
 
     public PhaseVocoderAnalyzer() {
-        super(TAG);
+        super(TAG, BUFFER_CAPACITY, FFT_TIME, HOP_RATIO);
     }
+
+    //
 
     @Override
     public synchronized long getTime() {
@@ -85,87 +76,45 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         return thisTime;
     }
 
-    /////////
-    // LOG //
-    /////////
+    private float[] setOutput(FloatBuffer outBuffer, float[] out) {
+        float[] outTemp = new float[fftFrameSize];
 
-    private void myLogD(String str) {
-        // Log.d(TAG, str);
+        outBuffer.flip();
+        outBuffer.mark();
+        outBuffer.get(outTemp, 0, fftFrameSize);
+
+        for(int j = 0; j < fftFrameSize; j++) {
+            outTemp[j] += out[j];
+        }
+
+        outBuffer.reset();
+        outBuffer.put(Arrays.copyOfRange(outTemp, fftHopSize, fftFrameSize));
+        outBuffer.put(new float[fftHopSize]);
+
+        return Arrays.copyOfRange(outTemp, 0, fftHopSize);
     }
 
-    private void myLogComplex(float[] r, float[] t, float[] x, float[] y) {
-        for(int i = 0; i < 8; i++) {
-            myLogD("Bin " + String.valueOf(i) + ": "
-                    + "(r, t) = ("
-                    + String.format("%.2e", r[i]) + ", "
-                    + String.format("%.0f", t[i] / Math.PI * 180) + "º); "
-                    + "(x, y) = ("
-                    + String.format("%.2e", x[i]) + ", "
-                    + String.format("%.2e", y[i]) + ")");
-        }
-        for(int i = r.length - 8; i < r.length; i++) {
-            myLogD("Bin " + String.valueOf(i) + ": "
-                    + "(r, t) = ("
-                    + String.format("%.2e", r[i]) + ", "
-                    + String.format("%.0f", t[i] / Math.PI * 180) + "º); "
-                    + "(x, y) = ("
-                    + String.format("%.2e", x[i]) + ", "
-                    + String.format("%.2e", y[i]) + ")");
-        }
-    }
-
-    private void myLogArray(float[] x, int skip) {
-        for (int i = 0; i < x.length; i += skip) {
-            myLogD("["
-                    + String.valueOf(i) + "] = "
-                    + String.format("%.2e", x[i]));
-        }
-    }
-
-    /////////////
-    // PROCESS //
-    /////////////
+    //
 
     @Override
     public void create() {
         super.create();
 
-        // FFT
-        fftFrameSize = (int)(sampleRate * FFT_TIME);
-        fftSizeLog = (fftFrameSize == 0)? 0 : (32 - Integer.numberOfLeadingZeros(fftFrameSize - 1));
-
-        fftFrameSize = 1 << fftSizeLog;
-        fftSizeCompact = fftFrameSize / 2 + 1;
-        fftHopSize = fftFrameSize / HOP_RATIO;
-        fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
-
-        Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
-        Log.d(TAG, "fftHopSizeUs = " + String.valueOf(fftHopSizeUs));
-
-        // Utility
-        fft = new FFT(fftFrameSize, fftSizeLog);
-        window = new Window(fftFrameSize);
         util = new Util();
-
-        // Playback
-        speed = 1.5f;
+        speed = 1.5f; // TODO: change
     }
 
     @Override
     public void start() {
         super.start();
 
-        // Record
+        //
         frame = 0;
         removedFrame = 0;
-        startSample = 1;
-        endSample = 0;
 
-        // Buffer
-        inFloatBuffer = new FloatBuffer[numChannel];
+        //
         outFloatBuffer = new FloatBuffer[numChannel];
         for(int i = 0; i < numChannel; i++) {
-            inFloatBuffer[i] = FloatBuffer.allocate(BUFFER_CAPACITY);
             outFloatBuffer[i] = FloatBuffer.allocate(BUFFER_CAPACITY);
             outFloatBuffer[i].put(new float[fftFrameSize]);
         }
@@ -177,83 +126,26 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         super.operation();
 
         int floorFrame = (int)(Math.floor(frame));
-        int ceilFrame = floorFrame + 1;
         float fracFrame = frame - floorFrame;
-
         int floorLeftSample = floorFrame * fftHopSize + 1;
-        int floorRightSample = floorFrame * fftHopSize + fftFrameSize;
-        int ceilLeftSample = ceilFrame * fftHopSize + 1;
-        int ceilRightSample = ceilFrame * fftHopSize + fftFrameSize;
 
         myLogD("--- [ACTION] ---");
         myLogD("frame = " + String.valueOf(frame));
         myLogD("startSample = " + String.valueOf(startSample));
         myLogD("floorLeftSample = " + String.valueOf(floorLeftSample));
-        myLogD("ceilRightSample = " + String.valueOf(ceilRightSample));
 
-        // INPUT
-        while(endSample < ceilRightSample) {
-            byte[] byteArray = dequeueInput(TIMEOUT_US);
+        //
+        getInput(floorLeftSample + fftFrameAndHopSize);
 
-            if(byteArray != null) {
-                short[] shortArray = new short[byteArray.length / BYTE_PER_SHORT];
-                ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortArray);
-
-                int numSample = byteArray.length / (numChannel * BYTE_PER_SHORT);
-                myLogD("--- [LOAD] ---");
-                myLogD("numSample = " + String.valueOf(numSample));
-                for(int i = 0; i < numChannel; i++) {
-                    float[] floatArray = new float[numSample];
-                    for(int j = 0; j < numSample; j++) {
-                        floatArray[j] = (float)(shortArray[j * numChannel + i]);
-                    }
-                    // TODO: handle buffer size change
-                    inFloatBuffer[i].put(floatArray);
-                }
-
-                endSample += numSample;
-                myLogD("endSample = " + String.valueOf(endSample));
-            }
-        }
-
-        // PROCESSING
-        int inSize = ceilRightSample - floorLeftSample + 1;
+        //
         float[][] out = new float[numChannel][];
 
         for(int i = 0; i < numChannel; i++) {
-            float[] in = new float[inSize];
-
-            inFloatBuffer[i].flip();
-            inFloatBuffer[i].position(floorLeftSample - startSample);
-            inFloatBuffer[i].mark();
-            inFloatBuffer[i].get(in, 0, inSize);
-            inFloatBuffer[i].reset();
-            inFloatBuffer[i].compact();
-
+            float[] in = getFrame(inFloatBuffer[i], floorLeftSample - startSample, fftFrameAndHopSize);
             float[] left = Arrays.copyOfRange(in, 0, fftFrameSize);
             float[] right = Arrays.copyOfRange(in, fftHopSize, fftHopSize + fftFrameSize);
-            float[] inter = new float[fftFrameSize];
-
-            util.interpolate(inter, left, right, fracFrame);
-
-            float[] outTemp = new float[fftFrameSize];
-
-            outFloatBuffer[i].flip();
-            outFloatBuffer[i].mark();
-            outFloatBuffer[i].get(outTemp, 0, fftFrameSize);
-
-            for(int j = 0; j < fftFrameSize; j++) {
-                outTemp[j] += inter[j];
-            }
-
-            outFloatBuffer[i].reset();
-            outFloatBuffer[i].put(Arrays.copyOfRange(outTemp, fftHopSize, fftFrameSize));
-            outFloatBuffer[i].put(new float[fftHopSize]);
-
-            out[i] = Arrays.copyOfRange(outTemp, 0, fftHopSize);
-
-            //myLogD("out (time domain)");
-            //myLogArray(out[i], 8);
+            float[] inter = util.interpolate(left, right, fracFrame);
+            out[i] = setOutput(outFloatBuffer[i], inter);
         }
 
         frameBuffer.put(frame);
@@ -264,11 +156,11 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             frameBuffer.position(thisRemovedSize);
             frameBuffer.compact();
         }
-        frame += speed;
 
+        frame += speed;
         startSample = floorLeftSample;
 
-        // OUTPUT
+        //
         short[] shortBufferArray = new short[fftHopSize * numChannel];
         for(int i = 0; i < numChannel; i++) {
             for(int j = 0; j < fftHopSize; j++) {
@@ -285,7 +177,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
         next.queueInput(byteBufferArray);
 
-        if (inputEOS && inputQueue.isEmpty()) {
+        if(inputEOS && inputQueue.isEmpty()) {
             setOutputEOS();
         }
     }
@@ -300,169 +192,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         super.destroy();
     }
 
-    /////////////////
-    // INNER CLASS //
-    /////////////////
-
-    private class Window {
-        private int n;
-        private float[] w;
-
-        public Window(int n) {
-            this.n = n;
-            w = new float[n];
-            for (int i = 0; i < n; i++) {
-                w[i] = (float) (1 - Math.cos(2 * Math.PI * i / n)) / 2;
-            }
-        }
-
-        public void window(float[] x) {
-            if (x.length != n) {
-                throw new RuntimeException();
-            }
-
-            for (int i = 0; i < n; i++) {
-                x[i] *= w[i];
-            }
-        }
-
-        public void scale(float[] x) {
-            if (x.length != n) {
-                throw new RuntimeException();
-            }
-
-            for (int i = 0; i < n; i++) {
-                x[i] *= (2f / 3);
-            }
-        }
-    }
-
-    private class FFT {
-        private int n;
-        private int m;
-        private float[] cos;
-        private float[] sin;
-
-        public FFT(int n, int m) {
-            this.n = n;
-            this.m = m;
-
-            cos = new float[n / 2];
-            sin = new float[n / 2];
-            for (int i = 0; i < n / 2; i++) {
-                cos[i] = (float) (Math.cos(-2 * Math.PI * i / n));
-                sin[i] = (float) (Math.sin(-2 * Math.PI * i / n));
-            }
-        }
-
-        private void reverse(float[] x, float[] y) {
-            int i, j, n1, n2;
-            float t1;
-
-            j = 0;
-            n2 = n / 2;
-            for (i = 1; i < n - 1; i++) {
-                n1 = n2;
-                while (j >= n1) {
-                    j = j - n1;
-                    n1 = n1 / 2;
-                }
-                j = j + n1;
-
-                if (i < j) {
-                    t1 = x[i];
-                    x[i] = x[j];
-                    x[j] = t1;
-                    t1 = y[i];
-                    y[i] = y[j];
-                    y[j] = t1;
-                }
-            }
-        }
-
-        public void fft(float[] x, float[] y) {
-            if ((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            int i, j, k, n1, n2, a;
-            float c, s, t1, t2;
-
-            reverse(x, y);
-
-            // FFT
-            n1 = 0;
-            n2 = 1;
-
-            for (i = 0; i < m; i++) {
-                n1 = n2;
-                n2 = n2 + n2;
-                a = 0;
-
-                for (j = 0; j < n1; j++) {
-                    c = cos[a];
-                    s = sin[a];
-                    a += 1 << (m - i - 1);
-
-                    for (k = j; k < n; k = k + n2) {
-                        t1 = c * x[k + n1] - s * y[k + n1];
-                        t2 = s * x[k + n1] + c * y[k + n1];
-                        x[k + n1] = x[k] - t1;
-                        y[k + n1] = y[k] - t2;
-                        x[k] = x[k] + t1;
-                        y[k] = y[k] + t2;
-                    }
-                }
-            }
-        }
-
-        public void ifft(float[] x, float[] y) {
-            if ((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            int i, j, k, n1, n2, a;
-            float c, s, t1, t2;
-
-            reverse(x, y);
-
-            // FFT
-            n1 = 0;
-            n2 = 1;
-
-            for (i = 0; i < m; i++) {
-                n1 = n2;
-                n2 = n2 + n2;
-                a = 0;
-
-                for (j = 0; j < n1; j++) {
-                    c = cos[a];
-                    s = sin[a];
-                    a += 1 << (m - i - 1);
-
-                    for (k = j; k < n; k = k + n2) {
-                        t1 = c * x[k + n1] + s * y[k + n1];
-                        t2 = s * x[k + n1] - c * y[k + n1];
-                        x[k + n1] = x[k] - t1;
-                        y[k + n1] = y[k] + t2;
-                        x[k] = x[k] + t1;
-                        y[k] = y[k] - t2;
-                    }
-                }
-            }
-        }
-
-        public void scale(float[] x, float[] y) {
-            if ((x.length != n) || (y.length != n)) {
-                throw new RuntimeException();
-            }
-
-            for (int i = 0; i < n; i++) {
-                x[i] /= n;
-                y[i] /= n;
-            }
-        }
-    }
+    //
 
     private class Util {
         public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
@@ -487,23 +217,19 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             float[] imag = new float[fftFrameSize];
 
             window.window(real);
-            //myLogArray(real);
             fft.fft(real, imag);
             cart2pol(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
-
-            //myLogComplex(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
         }
 
-        public void interpolate(float[] interReal, float[] leftReal, float[] rightReal, float ratio) {
+        public float[] interpolate(float[] leftReal, float[] rightReal, float ratio) {
+            float[] interReal = new float[fftFrameSize];
+
             float[] leftR = new float[fftSizeCompact];
             float[] rightR = new float[fftSizeCompact];
             float[] leftT = new float[fftSizeCompact];
             float[] rightT = new float[fftSizeCompact];
 
-            //myLogD("--- [interpolate] ---");
-            //myLogD("left (time / frequency domain)");
             process(leftR, leftT, leftReal);
-            //myLogD("right (time / frequency domain)");
             process(rightR, rightT, rightReal);
 
             if(phase == null) {
@@ -524,9 +250,6 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
             pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
 
-            //myLogD("inter (frequency domain)");
-            //myLogComplex(magnitude, phase, interRealTrunc, interImagTrunc);
-
             float[] interImag = new float[fftFrameSize];
 
             for(int i = 0; i < fftSizeCompact; i++) {
@@ -545,8 +268,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             window.window(interReal);
             window.scale(interReal);
 
-            //myLogD("inter (time domain)");
-            //myLogArray(interReal, 8);
+            return interReal;
         }
     }
 }

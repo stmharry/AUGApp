@@ -1,6 +1,8 @@
 package com.example.harry.aug;
 
 import android.os.Bundle;
+import android.widget.ListView;
+import android.widget.TextView;
 
 public class AnalyzerFragment extends AUGFragment {
     private static final String TAG = "AnalyzerFragment";
@@ -18,7 +20,8 @@ public class AnalyzerFragment extends AUGFragment {
         return fragment;
     }
 
-    public AnalyzerFragment() {}
+    public AnalyzerFragment() {
+    }
 
     //
 
@@ -26,10 +29,33 @@ public class AnalyzerFragment extends AUGFragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
+        SongManager.Song song = augActivity.getSongManager().getSongToAnalyze();
+        String songTitle = (String) song.get(SongManager.FIELD_TITLE);
+        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
+
+        TextView analyzerInfoTextView = (TextView) augActivity.findViewById(R.id.analyzer_info);
+        analyzerInfoTextView.setText("Analyzing: " + songTitle);
+
         AUGComponent[] AUGComponents = new AUGComponent[]{
                 Decoder.newInstance(),
                 LabROSAAnalyzer.newInstance()};
 
         augManager = new AUGManager(augActivity, AUGComponents);
+        augManager.setDataSource(songFieldData);
+        augManager.prepare();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        augManager.start();
+    }
+
+    // TODO: onpause
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        augManager.stop();
     }
 }

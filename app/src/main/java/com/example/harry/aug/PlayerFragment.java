@@ -1,7 +1,6 @@
 package com.example.harry.aug;
 
 import android.os.Bundle;
-import android.provider.MediaStore;
 
 public class PlayerFragment extends AUGFragment {
     private static final String TAG = "PlayerFragment";
@@ -28,13 +27,15 @@ public class PlayerFragment extends AUGFragment {
         super.onActivityCreated(savedInstanceState);
 
         SongManager.Song song = augActivity.getSongManager().getSongToPlay();
+        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
+
         AUGComponent[] AUGComponents = new AUGComponent[]{
                 Decoder.newInstance(),
                 PhaseVocoderAnalyzer.newInstance(),
                 AudioPlayer.newInstance()};
 
         augManager = new AUGManager(augActivity, AUGComponents);
-        augManager.setDataSource((String) (song.get(MediaStore.Audio.Media.DATA)));
+        augManager.setDataSource(songFieldData);
         augManager.prepare();
     }
 
