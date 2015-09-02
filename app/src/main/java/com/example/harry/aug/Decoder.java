@@ -8,7 +8,7 @@ import java.nio.ByteBuffer;
 /**
  * Created by harry on 15/8/2.
  */
-public class Decoder extends Component {
+public class Decoder extends AUGComponent {
     private static final String TAG = "Decoder";
 
     private MediaCodec mediaCodec;

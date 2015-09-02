@@ -11,12 +11,10 @@ import java.util.Arrays;
 /**
  * Created by harry on 15/8/2.
  */
-public class PhaseVocoder extends Component {
-    private static final String TAG = "PhaseVocoder";
+public class PhaseVocoderAnalyzer extends Analyzer {
+    private static final String TAG = "PhaseVocoderAnalyzer";
 
-    private static final int BUFFER_CAPACITY = 4096;
-    private static final float FFT_TIME = 0.01f;
-    private static final int HOP_RATIO = 4;
+
 
     private Window window;
     private FFT fft;
@@ -40,11 +38,11 @@ public class PhaseVocoder extends Component {
     private int fftHopSize;
     private long fftHopSizeUs;
 
-    public static PhaseVocoder newInstance() {
-        return new PhaseVocoder();
+    public static PhaseVocoderAnalyzer newInstance() {
+        return new PhaseVocoderAnalyzer();
     }
 
-    public PhaseVocoder() {
+    public PhaseVocoderAnalyzer() {
         super(TAG);
     }
 

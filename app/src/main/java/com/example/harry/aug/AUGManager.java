@@ -1,6 +1,5 @@
 package com.example.harry.aug;
 
-import android.app.Activity;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Handler;
@@ -24,20 +23,20 @@ public class AUGManager {
     private AUGActivity activity;
     private State state;
     private MediaExtractor mediaExtractor;
-    private Component[] components;
+    private AUGComponent[] AUGComponents;
     private Handler handler;
     private TimeUpdater timeUpdater;
     private Destroyer destroyer;
 
-    public AUGManager(AUGActivity activity, Component[] components) {
+    public AUGManager(AUGActivity activity, AUGComponent[] AUGComponents) {
         this.activity = activity;
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
-        this.components = components;
+        this.AUGComponents = AUGComponents;
         /*
-        this.components = new Component[]{
+        this.AUGComponents = new AUGComponent[]{
                 new Decoder(this),
-                new PhaseVocoder(this),
+                new PhaseVocoderAnalyzer(this),
                 new AudioPlayer(this)};
                 */
 
@@ -45,9 +44,9 @@ public class AUGManager {
         this.timeUpdater = new TimeUpdater();
         this.destroyer = new Destroyer();
 
-        for(int i = 0; i < components.length; i++) {
-            components[i].setAugManager(this);
-            components[i].setNext((i != components.length - 1)? components[i + 1] : null);
+        for(int i = 0; i < AUGComponents.length; i++) {
+            AUGComponents[i].setAugManager(this);
+            AUGComponents[i].setNext((i != AUGComponents.length - 1)? AUGComponents[i + 1] : null);
         }
     }
 
@@ -98,9 +97,9 @@ public class AUGManager {
     //
 
     public void prepare() {
-        for(Component component: components) {
-            component.create();
-            component.start();
+        for(AUGComponent AUGComponent : AUGComponents) {
+            AUGComponent.create();
+            AUGComponent.start();
         }
     }
 
@@ -108,15 +107,15 @@ public class AUGManager {
         switch(state) {
             case STATE_STOPPED:
                 state = State.STATE_PLAYING;
-                for(Component component: components) {
-                    (new Thread(component)).start();
+                for(AUGComponent AUGComponent : AUGComponents) {
+                    (new Thread(AUGComponent)).start();
                 }
                 timeUpdater.initiate(true);
                 break;
             case STATE_PAUSED:
                 state = State.STATE_PLAYING;
                 synchronized(this) {
-                    for(Component component: components) component.notify();
+                    for(AUGComponent AUGComponent : AUGComponents) AUGComponent.notify();
                 }
                 timeUpdater.initiate(true);
                 break;
@@ -149,7 +148,7 @@ public class AUGManager {
     }
 
     public long seek() {
-        return components[0].getTime();
+        return AUGComponents[0].getTime();
     }
 
     //
@@ -166,7 +165,7 @@ public class AUGManager {
         private boolean loop;
 
         public TimeUpdater() {
-            this.length = AUGManager.this.components.length;
+            this.length = AUGManager.this.AUGComponents.length;
             this.playerTimeViews = new TextView[length];
         }
 
@@ -185,7 +184,7 @@ public class AUGManager {
             LinearLayout playerTimeLayout = (LinearLayout) activity.findViewById(R.id.player);
 
             for (int i = 0; i < length; i++) {
-                long timeUs = AUGManager.this.components[i].getTime();
+                long timeUs = AUGManager.this.AUGComponents[i].getTime();
                 if(timeUs == AUGManager.UPDATE_FAIL) {
                     continue;
                 }
@@ -197,7 +196,7 @@ public class AUGManager {
                             ViewGroup.LayoutParams.WRAP_CONTENT));
                     playerTimeLayout.addView(playerTimeViews[i]);
                 }
-                playerTimeViews[i].setText(String.format("Component %d: %.2f s", i, time));
+                playerTimeViews[i].setText(String.format("AUGComponent %d: %.2f s", i, time));
             }
 
             if(loop) {
@@ -214,8 +213,8 @@ public class AUGManager {
 
         @Override
         public void run() {
-            for(Component component: components) {
-                component.destroy();
+            for(AUGComponent AUGComponent : AUGComponents) {
+                AUGComponent.destroy();
             }
         }
     }

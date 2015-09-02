@@ -8,7 +8,7 @@ import android.util.Log;
 /**
  * Created by harry on 15/8/2.
  */
-public class AudioPlayer extends Component {
+public class AudioPlayer extends AUGComponent {
     private static final String TAG = "AudioPlayer";
 
     private AudioTrack audioTrack;

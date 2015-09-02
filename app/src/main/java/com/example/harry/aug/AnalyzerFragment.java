@@ -26,10 +26,10 @@ public class AnalyzerFragment extends AUGFragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        Component[] components = new Component[]{
+        AUGComponent[] AUGComponents = new AUGComponent[]{
                 Decoder.newInstance(),
                 LabROSAAnalyzer.newInstance()};
 
-        augManager = new AUGManager(augActivity, components);
+        augManager = new AUGManager(augActivity, AUGComponents);
     }
 }

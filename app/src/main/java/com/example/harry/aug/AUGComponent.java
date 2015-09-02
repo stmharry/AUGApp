@@ -11,15 +11,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by harry on 15/8/2.
  */
-public abstract class Component implements Runnable {
+public abstract class AUGComponent implements Runnable {
     protected static final int BUFFER_QUEUE_CAPACITY = 16;
     protected static final int BYTE_PER_SHORT = Short.SIZE / 8;
     protected static final long TIMEOUT_US = 1000;
     protected static final long S_TO_US = TimeUnit.SECONDS.toMicros(1);
     protected String TAG;
     protected AUGManager augManager;
-    protected Component prev;
-    protected Component next;
+    protected AUGComponent prev;
+    protected AUGComponent next;
     protected ArrayBlockingQueue<byte[]> inputQueue;
 
     protected boolean inputEOS;
@@ -34,7 +34,7 @@ public abstract class Component implements Runnable {
 
     //
 
-    public Component(String TAG) {
+    public AUGComponent(String TAG) {
         this.TAG = TAG;
     }
 
@@ -42,7 +42,7 @@ public abstract class Component implements Runnable {
         this.augManager = augManager;
     }
 
-    public void setNext(Component next) {
+    public void setNext(AUGComponent next) {
         if(next != null) {
             this.next = next;
             this.next.prev = this;
