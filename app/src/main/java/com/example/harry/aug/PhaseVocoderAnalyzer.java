@@ -1,5 +1,7 @@
 package com.example.harry.aug;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -12,7 +14,8 @@ import java.util.Arrays;
 public class PhaseVocoderAnalyzer extends Analyzer {
     private static final String TAG = "PhaseVocoderAnalyzer";
 
-    private static final int BUFFER_CAPACITY = 4096;
+    private static final int BUFFER_CAPACITY = 16384;
+    private static final int SAMPLE_RATE_TARGET = 0;
     private static final float FFT_TIME = 0.01f;
     private static final int HOP_RATIO = 4;
 
@@ -32,7 +35,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     }
 
     public PhaseVocoderAnalyzer() {
-        super(TAG, BUFFER_CAPACITY, FFT_TIME, HOP_RATIO);
+        super(TAG, BUFFER_CAPACITY, SAMPLE_RATE_TARGET, FFT_TIME, HOP_RATIO);
     }
 
     //
@@ -138,7 +141,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         myLogD("floorLeftSample = " + String.valueOf(floorLeftSample));
 
         //
-        getInput(floorLeftSample + fftFrameAndHopSize);
+        requireInput(floorLeftSample + fftFrameAndHopSize);
 
         //
         float[][] out = new float[numChannel][];
@@ -146,7 +149,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         for(int i = 0; i < numChannel; i++) {
             float[] in = getFrame(inFloatBuffer[i], floorLeftSample - startSample, fftFrameAndHopSize);
             float[] left = Arrays.copyOfRange(in, 0, fftFrameSize);
-            float[] right = Arrays.copyOfRange(in, fftHopSize, fftHopSize + fftFrameSize);
+            float[] right = Arrays.copyOfRange(in, fftHopSize, fftFrameAndHopSize);
             float[] inter = util.interpolate(left, right, fracFrame);
             out[i] = setOutput(outFloatBuffer[i], inter);
         }
@@ -207,25 +210,25 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         }
 
         public float[] interpolate(float[] leftReal, float[] rightReal, float ratio) {
-            float[] leftR = new float[fftFrameSizeCompact];
-            float[] rightR = new float[fftFrameSizeCompact];
-            float[] leftT = new float[fftFrameSizeCompact];
-            float[] rightT = new float[fftFrameSizeCompact];
+            float[] leftMag = new float[fftFrameSizeCompact];
+            float[] rightMag = new float[fftFrameSizeCompact];
+            float[] leftPhase = new float[fftFrameSizeCompact];
+            float[] rightPhase = new float[fftFrameSizeCompact];
 
-            process(leftR, leftT, leftReal);
-            process(rightR, rightT, rightReal);
+            process(leftMag, leftPhase, leftReal);
+            process(rightMag, rightPhase, rightReal);
 
             if(phase == null) {
                 magnitude = new float[fftFrameSizeCompact];
-                phase = compact(leftT);
+                phase = Arrays.copyOf(leftPhase, fftFrameSizeCompact);
             } else {
                 for(int i = 0; i < fftFrameSizeCompact; i++) {
-                    phase[i] += (rightT[i] - leftT[i]);
+                    phase[i] += (rightPhase[i] - leftPhase[i]);
                 }
             }
 
             for(int i = 0; i < fftFrameSizeCompact; i++) {
-                magnitude[i] = (1 - ratio) * leftR[i] + ratio * rightR[i];
+                magnitude[i] = (1 - ratio) * leftMag[i] + ratio * rightMag[i];
             }
 
             float[] interRealTrunc = new float[fftFrameSizeCompact];

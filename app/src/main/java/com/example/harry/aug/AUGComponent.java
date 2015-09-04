@@ -16,6 +16,7 @@ public abstract class AUGComponent implements Runnable {
     protected static final int BYTE_PER_SHORT = Short.SIZE / 8;
     protected static final long TIMEOUT_US = 1000;
     protected static final long S_TO_US = TimeUnit.SECONDS.toMicros(1);
+
     protected String TAG;
     protected AUGManager augManager;
     protected AUGComponent prev;

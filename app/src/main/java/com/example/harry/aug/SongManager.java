@@ -79,7 +79,8 @@ public class SongManager {
     public Song getSongToAnalyze() {
         for(Song song: songList) {
             //if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {
-            if(song.get(FIELD_TITLE).equals("sine_long")) { // TODO: remove this
+            //if(song.get(FIELD_TITLE).equals("LMFAO - Party Rock Anthem")) { // TODO: remove this
+            if(song.get(FIELD_TITLE).equals("ZHU - Faded (Lido Remix)")) { // TODO: remove this
                 return song;
             }
         }
@@ -94,12 +95,14 @@ public class SongManager {
             do {
                 //
 
-                int durationColumn = cursor.getColumnIndex(FIELD_DURATION);
-                long duration = cursor.getLong(durationColumn);
-                if(duration > 12000) continue; // TODO: remove this
+                String title = cursor.getString(cursor.getColumnIndex(FIELD_TITLE));
+                String data = cursor.getString(cursor.getColumnIndex(FIELD_DATA));
+                Log.d(TAG, "Song " + title + ": " + data);
+
+                long duration = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
+                //if(duration > 12000) continue; // TODO: remove this
 
                 //
-
                 songList.add(new Song(cursor));
             } while(cursor.moveToNext());
         }

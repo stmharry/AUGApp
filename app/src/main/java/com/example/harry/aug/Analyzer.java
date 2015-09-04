@@ -12,16 +12,19 @@ import java.util.Arrays;
  */
 public abstract class Analyzer extends AUGComponent {
     protected int BUFFER_CAPACITY;
+    protected int SAMPLE_RATE_TARGET;
     protected float FFT_TIME;
     protected int HOP_RATIO;
 
     protected Window window;
     protected FFT fft;
     protected Mel mel;
+    protected Util util;
 
     protected FloatBuffer[] inFloatBuffer;
     protected int startSample;
     protected int endSample;
+    protected int downSampleRatio;
 
     protected int fftFrameSize;
     protected int fftSizeLog;
@@ -32,10 +35,11 @@ public abstract class Analyzer extends AUGComponent {
 
     //
 
-    public Analyzer(String TAG, int BUFFER_CAPACITY, float FFT_TIME, int HOP_RATIO) {
+    public Analyzer(String TAG, int BUFFER_CAPACITY, int SAMPLE_RATE_TARGET, float FFT_TIME, int HOP_RATIO) {
         super(TAG);
 
         this.BUFFER_CAPACITY = BUFFER_CAPACITY;
+        this.SAMPLE_RATE_TARGET = SAMPLE_RATE_TARGET;
         this.FFT_TIME = FFT_TIME;
         this.HOP_RATIO = HOP_RATIO;
     }
@@ -43,12 +47,14 @@ public abstract class Analyzer extends AUGComponent {
     //
 
     protected void myLogD(String str) {
-        // Log.d(TAG, str);
+        //Log.d(TAG, str);
     }
 
     //
 
-    protected void getInput(int requiredEndSample) {
+    protected void requireInput(int requiredEndSample) {
+        requiredEndSample *= downSampleRatio;
+
         while(endSample < requiredEndSample) {
             byte[] byteArray = dequeueInput(TIMEOUT_US);
 
@@ -57,14 +63,20 @@ public abstract class Analyzer extends AUGComponent {
                 ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortArray);
 
                 int numSample = byteArray.length / (numChannel * BYTE_PER_SHORT);
-                myLogD("--- [getInput] ---");
+                myLogD("--- [requireInput] ---");
                 myLogD("numSample = " + String.valueOf(numSample));
                 for(int i = 0; i < numChannel; i++) {
                     float[] floatArray = new float[numSample];
                     for(int j = 0; j < numSample; j++) {
                         floatArray[j] = (float)(shortArray[j * numChannel + i]);
                     }
-                    // TODO: handle buffer size change
+                    /*
+                    while(inFloatBuffer[i].remaining() < numSample) {
+                        FloatBuffer floatBuffer = FloatBuffer.allocate(inFloatBuffer[i].capacity() * 2);
+                        inFloatBuffer[i].flip();
+                        floatBuffer.put(inFloatBuffer[i]);
+                        inFloatBuffer[i] = floatBuffer;
+                    }*/ // TODO
                     inFloatBuffer[i].put(floatArray);
                 }
 
@@ -75,6 +87,9 @@ public abstract class Analyzer extends AUGComponent {
     }
 
     protected float[] getFrame(FloatBuffer inBuffer, int position, int inSize) {
+        position *= downSampleRatio;
+        inSize *= downSampleRatio;
+
         myLogD("--- [getFrame] ---");
         myLogD("position = " + String.valueOf(position));
         myLogD("inSize = " + String.valueOf(inSize));
@@ -88,7 +103,7 @@ public abstract class Analyzer extends AUGComponent {
         inBuffer.reset();
         inBuffer.compact();
 
-        return in;
+        return util.downSample(in, downSampleRatio);
     }
 
     //
@@ -96,6 +111,13 @@ public abstract class Analyzer extends AUGComponent {
     @Override
     public void create() {
         super.create();
+
+        if(SAMPLE_RATE_TARGET == 0) {
+            downSampleRatio = 1;
+        } else {
+            downSampleRatio = (int) (Math.ceil(sampleRate / SAMPLE_RATE_TARGET));
+        }
+        sampleRate /= downSampleRatio;
 
         // FFT
         fftFrameSize = (int)(sampleRate * FFT_TIME);
@@ -108,6 +130,8 @@ public abstract class Analyzer extends AUGComponent {
         fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
+
+        util = new Util();
     }
 
     @Override
@@ -392,6 +416,10 @@ public abstract class Analyzer extends AUGComponent {
         }
 
         public float[] downSample(float[] in, int ratio) {
+            if(ratio == 1) {
+                return in;
+            }
+
             int outSize = in.length / ratio;
             float[] out = new float[outSize];
             for(int i = 0; i < outSize; i++) {
@@ -400,12 +428,17 @@ public abstract class Analyzer extends AUGComponent {
             return out;
         }
 
+        private float DB_THRESH = -60;
+
         public float[] db(float[] in) {
             int length = in.length;
 
             float[] out = new float[length];
             for(int i = 0; i < length; i++) {
                 out[i] = (float)(20 * Math.log10(in[i]));
+                if(out[i] < DB_THRESH) {
+                    out[i] = DB_THRESH;
+                }
             }
             return out;
         }
