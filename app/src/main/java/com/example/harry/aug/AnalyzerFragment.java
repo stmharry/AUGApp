@@ -29,6 +29,11 @@ public class AnalyzerFragment extends AUGFragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
+        AUGComponent[] AUGComponents = new AUGComponent[]{
+                Decoder.newInstance(),
+                LabROSAAnalyzer.newInstance()};
+        TimeUpdater timeUpdater = new TimeUpdater();
+
         SongManager.Song song = augActivity.getSongManager().getSongToAnalyze();
 
         if(song == null) {
@@ -40,13 +45,9 @@ public class AnalyzerFragment extends AUGFragment {
         String songFieldData = (String) song.get(SongManager.FIELD_DATA);
 
         TextView analyzerInfoTextView = (TextView) augActivity.findViewById(R.id.analyzer_info);
-        analyzerInfoTextView.setText("Analyzing: " + songTitle);
+        analyzerInfoTextView.setText("Analyzing: " + songTitle); //
 
-        AUGComponent[] AUGComponents = new AUGComponent[]{
-                Decoder.newInstance(),
-                LabROSAAnalyzer.newInstance()};
-
-        augManager = new AUGManager(augActivity, AUGComponents);
+        augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
         augManager.setDataSource(songFieldData);
         augManager.prepare();
     }
@@ -67,5 +68,12 @@ public class AnalyzerFragment extends AUGFragment {
         if(!noSong) {
             augManager.stop();
         }
+    }
+
+    //
+
+    private class TimeUpdater extends AUGTimeUpdater {
+        @Override
+        public void run() {}
     }
 }

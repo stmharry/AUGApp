@@ -27,11 +27,12 @@ public abstract class Analyzer extends AUGComponent {
     protected int downSampleRatio;
 
     protected int fftFrameSize;
+    protected long fftFrameSizeUs;
     protected int fftSizeLog;
     protected int fftFrameSizeCompact;
     protected int fftHopSize;
-    protected int fftFrameAndHopSize;
     protected long fftHopSizeUs;
+    protected int fftFrameAndHopSize;
 
     //
 
@@ -124,10 +125,11 @@ public abstract class Analyzer extends AUGComponent {
         fftSizeLog = (fftFrameSize == 0)? 0 : (32 - Integer.numberOfLeadingZeros(fftFrameSize - 1));
 
         fftFrameSize = 1 << fftSizeLog;
+        fftFrameSizeUs = (S_TO_US * fftFrameSize) / sampleRate;
         fftFrameSizeCompact = fftFrameSize / 2 + 1;
         fftHopSize = fftFrameSize / HOP_RATIO;
-        fftFrameAndHopSize = fftFrameSize + fftHopSize;
         fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
+        fftFrameAndHopSize = fftFrameSize + fftHopSize;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
 

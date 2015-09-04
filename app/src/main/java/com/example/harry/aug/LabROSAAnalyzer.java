@@ -14,10 +14,11 @@ public class LabROSAAnalyzer extends Analyzer {
     private static final int HOP_RATIO = 8;
     private static final int MEL_BIN = 40;
 
-    private Util util;
-
     private int frame;
+
     private float[][] inMelDBLast;
+    private float[] onsetEnvelope;
+    private int onsetEnvelopeIndex;
 
     //
 
@@ -43,7 +44,9 @@ public class LabROSAAnalyzer extends Analyzer {
         fft = new FFT(fftFrameSize, fftSizeLog);
         window = new Window(fftFrameSize);
         mel = new Mel(0, sampleRate, MEL_BIN, fftFrameSize, fftFrameSizeCompact, sampleRate);
-        util = new Util();
+
+        inMelDBLast = new float[numChannel][];
+        onsetEnvelope = new float[(int)((augManager.getAllTime() - fftFrameSizeUs) / fftHopSizeUs + 1)];
     }
 
     @Override
@@ -51,7 +54,6 @@ public class LabROSAAnalyzer extends Analyzer {
         super.start();
 
         frame = 0;
-        inMelDBLast = new float[numChannel][];
     }
 
     @Override
@@ -89,14 +91,20 @@ public class LabROSAAnalyzer extends Analyzer {
             inMelDBLast[i] = inMelDB;
         }
 
+        onsetEnvelope[onsetEnvelopeIndex++] = inMelDBDiffSum;
+
+        /*
         int scale = 35;
         int inMelDBDiffSumScaled = (int) (inMelDBDiffSum / scale);
         Log.d(TAG, "inMelDBDiffSum: " + new String(new char[inMelDBDiffSumScaled]).replace("\0", " ") + String.format("x (%.0f)", inMelDBDiffSum));
+        */
 
         frame++;
         startSample = floorLeftSample;
 
         if(inputEOS && inputQueue.isEmpty()) {
+            // TODO
+
             setOutputEOS();
         }
     }
@@ -110,5 +118,4 @@ public class LabROSAAnalyzer extends Analyzer {
     public void destroy() {
         super.destroy();
     }
-
 }

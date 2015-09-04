@@ -1,6 +1,11 @@
 package com.example.harry.aug;
 
 import android.os.Bundle;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import java.util.concurrent.TimeUnit;
 
 public class PlayerFragment extends AUGFragment {
     private static final String TAG = "PlayerFragment";
@@ -26,15 +31,16 @@ public class PlayerFragment extends AUGFragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        SongManager.Song song = augActivity.getSongManager().getSongToPlay();
-        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
-
         AUGComponent[] AUGComponents = new AUGComponent[]{
                 Decoder.newInstance(),
                 PhaseVocoderAnalyzer.newInstance(),
                 AudioPlayer.newInstance()};
+        TimeUpdater timeUpdater = new TimeUpdater();
 
-        augManager = new AUGManager(augActivity, AUGComponents);
+        SongManager.Song song = augActivity.getSongManager().getSongToPlay();
+        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
+
+        augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
         augManager.setDataSource(songFieldData);
         augManager.prepare();
     }
@@ -56,5 +62,50 @@ public class PlayerFragment extends AUGFragment {
     public void onStop() {
         super.onStop();
         augManager.stop();
+    }
+
+    //
+
+    private class TimeUpdater extends AUGTimeUpdater {
+        private LinearLayout playerTimeLayout;
+        private TextView allTimeView;
+        private TextView currentTimeView;
+
+        @Override
+        public void run() {
+            if(playerTimeLayout == null) {
+                playerTimeLayout = (LinearLayout) augActivity.findViewById(R.id.player);
+            }
+
+            if(allTimeView == null) {
+                allTimeView = new TextView(augActivity);
+                allTimeView.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+                playerTimeLayout.addView(allTimeView);
+
+                float time = (float) augManager.getAllTime() / TimeUnit.SECONDS.toMicros(1);
+                allTimeView.setText(String.format("All: %.2f s", time));
+            }
+
+            long timeUs = augManager.getTime();
+
+            if(timeUs != AUGManager.UPDATE_FAIL) {
+                if(currentTimeView == null) {
+                    currentTimeView = new TextView(augActivity);
+                    currentTimeView.setLayoutParams(new ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT));
+                    playerTimeLayout.addView(currentTimeView);
+                }
+
+                float time = (float) timeUs / TimeUnit.SECONDS.toMicros(1);
+                currentTimeView.setText(String.format("Current: %.2f s", time));
+            }
+
+            if(loop) {
+                augManager.getHandler().postDelayed(this, UPDATE_INTERVAL);
+            }
+        }
     }
 }

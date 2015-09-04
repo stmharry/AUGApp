@@ -23,8 +23,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private FloatBuffer[] outFloatBuffer;
     private FloatBuffer frameBuffer;
 
-    private float[] magnitude;
-    private float[] phase;
+    private float[][] phase;
 
     private float speed;
     private float frame;
@@ -107,24 +106,24 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         window = new Window(fftFrameSize);
         util = new Util();
 
-        speed = 1.5f; // TODO: change
+        speed = 1f; // TODO: change
     }
 
     @Override
     public void start() {
         super.start();
 
-        //
         frame = 0;
         removedFrame = 0;
 
-        //
         outFloatBuffer = new FloatBuffer[numChannel];
         for(int i = 0; i < numChannel; i++) {
             outFloatBuffer[i] = FloatBuffer.allocate(BUFFER_CAPACITY);
             outFloatBuffer[i].put(new float[fftFrameSize]);
         }
         frameBuffer = FloatBuffer.allocate(BUFFER_CAPACITY);
+
+        phase = new float[numChannel][];
     }
 
     @Override
@@ -140,17 +139,15 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         myLogD("startSample = " + String.valueOf(startSample));
         myLogD("floorLeftSample = " + String.valueOf(floorLeftSample));
 
-        //
         requireInput(floorLeftSample + fftFrameAndHopSize);
 
-        //
         float[][] out = new float[numChannel][];
-
         for(int i = 0; i < numChannel; i++) {
             float[] in = getFrame(inFloatBuffer[i], floorLeftSample - startSample, fftFrameAndHopSize);
             float[] left = Arrays.copyOfRange(in, 0, fftFrameSize);
             float[] right = Arrays.copyOfRange(in, fftHopSize, fftFrameAndHopSize);
-            float[] inter = util.interpolate(left, right, fracFrame);
+            float[] inter = util.interpolate(phase, i, left, right, fracFrame);
+
             out[i] = setOutput(outFloatBuffer[i], inter);
         }
 
@@ -209,7 +206,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             cart2pol(r, t, compact(real), compact(imag));
         }
 
-        public float[] interpolate(float[] leftReal, float[] rightReal, float ratio) {
+        public float[] interpolate(float[][] phase, int ch, float[] leftReal, float[] rightReal, float ratio) {
             float[] leftMag = new float[fftFrameSizeCompact];
             float[] rightMag = new float[fftFrameSizeCompact];
             float[] leftPhase = new float[fftFrameSizeCompact];
@@ -218,23 +215,23 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             process(leftMag, leftPhase, leftReal);
             process(rightMag, rightPhase, rightReal);
 
-            if(phase == null) {
-                magnitude = new float[fftFrameSizeCompact];
-                phase = Arrays.copyOf(leftPhase, fftFrameSizeCompact);
+            if(phase[ch] == null) {
+                phase[ch] = Arrays.copyOf(leftPhase, fftFrameSizeCompact);
             } else {
                 for(int i = 0; i < fftFrameSizeCompact; i++) {
-                    phase[i] += (rightPhase[i] - leftPhase[i]);
+                    phase[ch][i] += (rightPhase[i] - leftPhase[i]);
                 }
             }
 
-            for(int i = 0; i < fftFrameSizeCompact; i++) {
+            float[] magnitude = new float[fftFrameSizeCompact];
+            for (int i = 0; i < fftFrameSizeCompact; i++) {
                 magnitude[i] = (1 - ratio) * leftMag[i] + ratio * rightMag[i];
             }
 
             float[] interRealTrunc = new float[fftFrameSizeCompact];
             float[] interImagTrunc = new float[fftFrameSizeCompact];
 
-            pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
+            pol2cart(interRealTrunc, interImagTrunc, magnitude, phase[ch]);
 
             float[] interReal = expand(interRealTrunc, true);
             float[] interImag = expand(interImagTrunc, false);
