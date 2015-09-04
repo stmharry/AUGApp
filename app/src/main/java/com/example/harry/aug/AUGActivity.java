@@ -79,11 +79,12 @@ public class AUGActivity extends AppCompatActivity {
     }
 
     public void replaceLayout(AUGLayout layout, AUGFragment fragment) {
-        AUGFragment AUG_FRAGMENT_CUR = null;
+        AUGFragment AUG_FRAGMENT_CURRENT = null;
         int drawerContentResource = 0;
+        boolean isNull = (fragment == null);
 
         if(layout == AUG_LAYOUT_MAJOR) {
-            AUG_FRAGMENT_CUR = AUG_FRAGMENT_MAJOR_CURRENT;
+            AUG_FRAGMENT_CURRENT = AUG_FRAGMENT_MAJOR_CURRENT;
             AUG_FRAGMENT_MAJOR_CURRENT = fragment;
             drawerContentResource = R.id.drawer_content_major;
             //
@@ -91,22 +92,24 @@ public class AUGActivity extends AppCompatActivity {
             actionBarTitle = getName(fragment);
             actionBar.setTitle(actionBarTitle);
         } else if(layout == AUG_LAYOUT_MINOR) {
-            AUG_FRAGMENT_CUR = AUG_FRAGMENT_MINOR_CURRENT;
+            AUG_FRAGMENT_CURRENT = AUG_FRAGMENT_MINOR_CURRENT;
             AUG_FRAGMENT_MINOR_CURRENT = fragment;
             drawerContentResource = R.id.drawer_content_minor;
             //
-            boolean isOpen = (fragment != null);
             for(AUGLayout augLayout: AUG_LAYOUT) {
-                augLayout.set(isOpen);
-            }
-            if(!isOpen) {
-                return;
+                augLayout.set(isNull);
             }
         }
 
-        if(fragment != AUG_FRAGMENT_CUR) {
-            fragment.setAugActivity(this);
-            fragmentManager.beginTransaction().replace(drawerContentResource, fragment).commit();
+        if(isNull) {
+            if(AUG_FRAGMENT_CURRENT != null) {
+                fragmentManager.beginTransaction().remove(AUG_FRAGMENT_CURRENT).commit();
+            }
+        } else {
+            if(fragment != AUG_FRAGMENT_CURRENT) {
+                fragment.setAugActivity(this);
+                fragmentManager.beginTransaction().replace(drawerContentResource, fragment).commit();
+            }
         }
     }
 
@@ -194,11 +197,11 @@ public class AUGActivity extends AppCompatActivity {
             this.drawerContentWeightClosedResource = drawerContentWeightClosedResource;
         }
 
-        public void set(boolean isOpen) {
+        public void set(boolean isNull) {
             findViewById(drawerContentResource).setLayoutParams(new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     0,
-                    getResources().getInteger(isOpen? drawerContentWeightOpenResource : drawerContentWeightClosedResource)));
+                    getResources().getInteger(isNull? drawerContentWeightClosedResource : drawerContentWeightOpenResource)));
         }
     }
 

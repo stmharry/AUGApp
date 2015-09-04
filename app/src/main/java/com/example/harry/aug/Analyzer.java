@@ -14,7 +14,7 @@ public abstract class Analyzer extends AUGComponent {
     protected int BUFFER_CAPACITY;
     protected int SAMPLE_RATE_TARGET;
     protected float FFT_TIME;
-    protected int HOP_RATIO;
+    protected int FFT_HOP_RATIO;
 
     protected Window window;
     protected FFT fft;
@@ -36,19 +36,41 @@ public abstract class Analyzer extends AUGComponent {
 
     //
 
-    public Analyzer(String TAG, int BUFFER_CAPACITY, int SAMPLE_RATE_TARGET, float FFT_TIME, int HOP_RATIO) {
+    public Analyzer(String TAG, int BUFFER_CAPACITY, int SAMPLE_RATE_TARGET, float FFT_TIME, int FFT_HOP_RATIO) {
         super(TAG);
 
         this.BUFFER_CAPACITY = BUFFER_CAPACITY;
         this.SAMPLE_RATE_TARGET = SAMPLE_RATE_TARGET;
         this.FFT_TIME = FFT_TIME;
-        this.HOP_RATIO = HOP_RATIO;
+        this.FFT_HOP_RATIO = FFT_HOP_RATIO;
     }
 
     //
 
     protected void myLogD(String str) {
         //Log.d(TAG, str);
+    }
+
+    protected void myLogArray(String name, float[] arr) {
+        int range = 50;
+        int length = arr.length;
+
+        float max = arr[0];
+        float min = arr[0];
+
+        for(int i = 0; i < length; i++) {
+            if(arr[i] > max) {
+                max = arr[i];
+            }
+            if(arr[i] < min) {
+                min = arr[i];
+            }
+        }
+
+        for(int i = 0; i < length; i++) {
+            int space = (int)((arr[i] - min) / (max - min) * range);
+            Log.d(TAG, String.format("%s[%d]: %sx (%.2e)", name, i, new String(new char[space]).replace("\0", " "), arr[i]));
+        }
     }
 
     //
@@ -77,7 +99,7 @@ public abstract class Analyzer extends AUGComponent {
                         inFloatBuffer[i].flip();
                         floatBuffer.put(inFloatBuffer[i]);
                         inFloatBuffer[i] = floatBuffer;
-                    }*/ // TODO
+                    }*/ // TODO: handle variable buffer
                     inFloatBuffer[i].put(floatArray);
                 }
 
@@ -113,6 +135,8 @@ public abstract class Analyzer extends AUGComponent {
     public void create() {
         super.create();
 
+        util = new Util();
+
         if(SAMPLE_RATE_TARGET == 0) {
             downSampleRatio = 1;
         } else {
@@ -122,18 +146,16 @@ public abstract class Analyzer extends AUGComponent {
 
         // FFT
         fftFrameSize = (int)(sampleRate * FFT_TIME);
-        fftSizeLog = (fftFrameSize == 0)? 0 : (32 - Integer.numberOfLeadingZeros(fftFrameSize - 1));
+        fftSizeLog = util.nextpow2(fftFrameSize);
 
         fftFrameSize = 1 << fftSizeLog;
         fftFrameSizeUs = (S_TO_US * fftFrameSize) / sampleRate;
         fftFrameSizeCompact = fftFrameSize / 2 + 1;
-        fftHopSize = fftFrameSize / HOP_RATIO;
+        fftHopSize = fftFrameSize / FFT_HOP_RATIO;
         fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
         fftFrameAndHopSize = fftFrameSize + fftHopSize;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
-
-        util = new Util();
     }
 
     @Override
@@ -378,6 +400,10 @@ public abstract class Analyzer extends AUGComponent {
     }
 
     protected class Util {
+        public int nextpow2(int x) {
+            return (x == 0)? 0 : (32 - Integer.numberOfLeadingZeros(x - 1));
+        }
+
         public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
             int length = x.length;
 
@@ -430,19 +456,18 @@ public abstract class Analyzer extends AUGComponent {
             return out;
         }
 
-        private float DB_THRESH = -60;
-
-        public float[] db(float[] in) {
+        public int maxIndex(float[] in) {
             int length = in.length;
 
-            float[] out = new float[length];
+            float max = in[0];
+            int maxIndex = 0;
             for(int i = 0; i < length; i++) {
-                out[i] = (float)(20 * Math.log10(in[i]));
-                if(out[i] < DB_THRESH) {
-                    out[i] = DB_THRESH;
+                if(in[i] > max) {
+                    max = in[i];
+                    maxIndex = i;
                 }
             }
-            return out;
+            return maxIndex;
         }
     }
 }

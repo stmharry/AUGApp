@@ -4,8 +4,6 @@ package com.example.harry.aug;
  * Created by harry on 15/9/4.
  */
 public abstract class AUGTimeUpdater implements Runnable {
-    protected static final int UPDATE_INTERVAL = 50;
-
     protected AUGActivity augActivity;
     protected AUGManager augManager;
     protected boolean loop;

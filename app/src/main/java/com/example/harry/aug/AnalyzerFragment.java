@@ -1,13 +1,18 @@
 package com.example.harry.aug;
 
 import android.os.Bundle;
-import android.widget.ListView;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public class AnalyzerFragment extends AUGFragment {
     private static final String TAG = "AnalyzerFragment";
     private static final int LAYOUT_RESOURCE = R.layout.fragment_analyzer;
     private static final int NAME_RESOURCE = R.string.fragment_analyzer;
+
+    public AUGComponent
+            ANALYZER_DECODER,
+            ANALYZER_ANALYZER;
 
     private AUGManager augManager;
     private boolean noSong;
@@ -30,8 +35,8 @@ public class AnalyzerFragment extends AUGFragment {
         super.onActivityCreated(savedInstanceState);
 
         AUGComponent[] AUGComponents = new AUGComponent[]{
-                Decoder.newInstance(),
-                LabROSAAnalyzer.newInstance()};
+                ANALYZER_DECODER = Decoder.newInstance(),
+                ANALYZER_ANALYZER = LabROSAAnalyzer.newInstance()};
         TimeUpdater timeUpdater = new TimeUpdater();
 
         SongManager.Song song = augActivity.getSongManager().getSongToAnalyze();
@@ -73,7 +78,52 @@ public class AnalyzerFragment extends AUGFragment {
     //
 
     private class TimeUpdater extends AUGTimeUpdater {
+        private final int UPDATE_INTERVAL = 100;
+
+        private LinearLayout analyzerLayout;
+        private TextView infoView;
+
         @Override
-        public void run() {}
+        public void run() {
+            if(analyzerLayout == null) {
+                analyzerLayout = (LinearLayout) augActivity.findViewById(R.id.analyzer);
+            }
+
+            String str;
+            LabROSAAnalyzer labROSAAnalyzer = (LabROSAAnalyzer) ANALYZER_ANALYZER;
+            LabROSAAnalyzer.State state = labROSAAnalyzer.getState();
+            switch(state) {
+                case STATE_ONSET:
+                    long curTime = augManager.getTime();
+                    long allTime = augManager.getAllTime();
+                    str = String.format("STATE_ONSET: %.3f (%d/%d)", (float) curTime / allTime, curTime, allTime);
+                    break;
+                case STATE_TEMPO:
+                    int curIteration = labROSAAnalyzer.getIteration();
+                    int allIteration = labROSAAnalyzer.getSelectionSize();
+                    str = String.format("STATE_TEMPO: %.2f (%d/%d)", (float) curIteration / allIteration, curIteration, allIteration);
+                    break;
+                case STATE_BEAT:
+                    str = "STATE_BEAT";
+                    break;
+                default:
+                    str = "default";
+                    break;
+            }
+
+            if(infoView == null) {
+                infoView = new TextView(augActivity);
+                infoView.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+                analyzerLayout.addView(infoView);
+            }
+
+            infoView.setText(str);
+
+            if(loop) {
+                augManager.getHandler().postDelayed(this, UPDATE_INTERVAL);
+            }
+        }
     }
 }

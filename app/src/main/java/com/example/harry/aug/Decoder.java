@@ -77,7 +77,6 @@ public class Decoder extends AUGComponent {
                 if(sampleSize >= 0) {
                     presentationTimeUs = augManager.getMediaExtractor().getSampleTime();
                     percentage = (int)(100 * presentationTimeUs / duration);
-                    // TODO: AudioPlayer Update
                 } else {
                     setInputEOS();
                     sampleSize = 0;

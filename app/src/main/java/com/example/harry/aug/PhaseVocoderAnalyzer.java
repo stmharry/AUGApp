@@ -1,7 +1,5 @@
 package com.example.harry.aug;
 
-import android.util.Log;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -17,7 +15,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private static final int BUFFER_CAPACITY = 16384;
     private static final int SAMPLE_RATE_TARGET = 0;
     private static final float FFT_TIME = 0.01f;
-    private static final int HOP_RATIO = 4;
+    private static final int FFT_HOP_RATIO = 4;
 
     private Util util;
     private FloatBuffer[] outFloatBuffer;
@@ -34,7 +32,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     }
 
     public PhaseVocoderAnalyzer() {
-        super(TAG, BUFFER_CAPACITY, SAMPLE_RATE_TARGET, FFT_TIME, HOP_RATIO);
+        super(TAG, BUFFER_CAPACITY, SAMPLE_RATE_TARGET, FFT_TIME, FFT_HOP_RATIO);
     }
 
     //
@@ -48,6 +46,8 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
         int floorNextFrame = (int) (Math.floor(nextFrame));
         float fracNextFrame = nextFrame - floorNextFrame;
+
+        // TODO: fix this
 
         myLogD("--- [SEEK] ---");
         myLogD("nextTime = " + String.valueOf(nextTime));
@@ -106,7 +106,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         window = new Window(fftFrameSize);
         util = new Util();
 
-        speed = 1f; // TODO: change
+        speed = 1f;
     }
 
     @Override
@@ -161,6 +161,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         }
 
         frame += speed;
+        speed += 0.0001;
         startSample = floorLeftSample;
 
         //

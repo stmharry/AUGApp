@@ -79,7 +79,7 @@ public class SongManager {
     public Song getSongToAnalyze() {
         for(Song song: songList) {
             //if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {\
-            if(song.get(FIELD_TITLE).equals("ZHU - Faded")) { // TODO: remove this
+            if(song.get(FIELD_TITLE).equals("Ringtone")) { // TODO: remove this
                 return song;
             }
         }
@@ -94,8 +94,8 @@ public class SongManager {
             do {
                 //
 
-                long duration = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
-                //if(duration > 12000) continue; // TODO: remove this
+                String title = cursor.getString(cursor.getColumnIndex(FIELD_TITLE));
+                if(title.startsWith("2015")) continue; // TODO: remove this
 
                 //
                 songList.add(new Song(cursor));

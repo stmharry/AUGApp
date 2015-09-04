@@ -5,11 +5,6 @@ import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.ViewGroup;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by harry on 15/8/2.

@@ -31,6 +31,8 @@ public class PlayerFragment extends AUGFragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
+        augActivity.replaceLayout(augActivity.AUG_LAYOUT_MINOR, null);
+
         AUGComponent[] AUGComponents = new AUGComponent[]{
                 Decoder.newInstance(),
                 PhaseVocoderAnalyzer.newInstance(),
@@ -67,14 +69,16 @@ public class PlayerFragment extends AUGFragment {
     //
 
     private class TimeUpdater extends AUGTimeUpdater {
-        private LinearLayout playerTimeLayout;
+        private final int UPDATE_INTERVAL = 50;
+
+        private LinearLayout playerLayout;
         private TextView allTimeView;
         private TextView currentTimeView;
 
         @Override
         public void run() {
-            if(playerTimeLayout == null) {
-                playerTimeLayout = (LinearLayout) augActivity.findViewById(R.id.player);
+            if(playerLayout == null) {
+                playerLayout = (LinearLayout) augActivity.findViewById(R.id.player);
             }
 
             if(allTimeView == null) {
@@ -82,7 +86,7 @@ public class PlayerFragment extends AUGFragment {
                 allTimeView.setLayoutParams(new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT));
-                playerTimeLayout.addView(allTimeView);
+                playerLayout.addView(allTimeView);
 
                 float time = (float) augManager.getAllTime() / TimeUnit.SECONDS.toMicros(1);
                 allTimeView.setText(String.format("All: %.2f s", time));
@@ -96,7 +100,7 @@ public class PlayerFragment extends AUGFragment {
                     currentTimeView.setLayoutParams(new ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT));
-                    playerTimeLayout.addView(currentTimeView);
+                    playerLayout.addView(currentTimeView);
                 }
 
                 float time = (float) timeUs / TimeUnit.SECONDS.toMicros(1);
