@@ -100,7 +100,10 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     public void create() {
         super.create();
 
+        fft = new FFT(fftFrameSize, fftSizeLog);
+        window = new Window(fftFrameSize);
         util = new Util();
+
         speed = 1.5f; // TODO: change
     }
 
@@ -193,76 +196,47 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     }
 
     //
-
-    private class Util {
-        public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
-            int length = x.length;
-
-            for(int i = 0; i < length; i++) {
-                r[i] = (float)(Math.sqrt(x[i] * x[i] + y[i] * y[i]));
-                t[i] = (float)(Math.atan2(y[i], x[i]));
-            }
-        }
-
-        public void pol2cart(float[] x, float[] y, float[] r, float[] t) {
-            int length = r.length;
-
-            for(int i = 0; i < length; i++) {
-                x[i] = r[i] * (float)(Math.cos(t[i]));
-                y[i] = r[i] * (float)(Math.sin(t[i]));
-            }
-        }
-
+    private class Util extends Analyzer.Util {
         public void process(float[] r, float[] t, float[] real) {
             float[] imag = new float[fftFrameSize];
 
             window.window(real);
-            fft.fft(real, imag);
-            cart2pol(r, t, Arrays.copyOf(real, fftSizeCompact), Arrays.copyOf(imag, fftSizeCompact));
+            fft.fft(real, imag, true);
+
+            cart2pol(r, t, compact(real), compact(imag));
         }
 
         public float[] interpolate(float[] leftReal, float[] rightReal, float ratio) {
-            float[] interReal = new float[fftFrameSize];
-
-            float[] leftR = new float[fftSizeCompact];
-            float[] rightR = new float[fftSizeCompact];
-            float[] leftT = new float[fftSizeCompact];
-            float[] rightT = new float[fftSizeCompact];
+            float[] leftR = new float[fftFrameSizeCompact];
+            float[] rightR = new float[fftFrameSizeCompact];
+            float[] leftT = new float[fftFrameSizeCompact];
+            float[] rightT = new float[fftFrameSizeCompact];
 
             process(leftR, leftT, leftReal);
             process(rightR, rightT, rightReal);
 
             if(phase == null) {
-                magnitude = new float[fftSizeCompact];
-                phase = Arrays.copyOf(leftT, fftSizeCompact);
+                magnitude = new float[fftFrameSizeCompact];
+                phase = compact(leftT);
             } else {
-                for(int i = 0; i < fftSizeCompact; i++) {
+                for(int i = 0; i < fftFrameSizeCompact; i++) {
                     phase[i] += (rightT[i] - leftT[i]);
                 }
             }
 
-            for(int i = 0; i < fftSizeCompact; i++) {
+            for(int i = 0; i < fftFrameSizeCompact; i++) {
                 magnitude[i] = (1 - ratio) * leftR[i] + ratio * rightR[i];
             }
 
-            float[] interRealTrunc = new float[fftSizeCompact];
-            float[] interImagTrunc = new float[fftSizeCompact];
+            float[] interRealTrunc = new float[fftFrameSizeCompact];
+            float[] interImagTrunc = new float[fftFrameSizeCompact];
 
             pol2cart(interRealTrunc, interImagTrunc, magnitude, phase);
 
-            float[] interImag = new float[fftFrameSize];
+            float[] interReal = expand(interRealTrunc, true);
+            float[] interImag = expand(interImagTrunc, false);
 
-            for(int i = 0; i < fftSizeCompact; i++) {
-                interReal[i] = interRealTrunc[i];
-                interImag[i] = interImagTrunc[i];
-            }
-
-            for(int i = fftSizeCompact; i < fftFrameSize; i++) {
-                interReal[i] = interRealTrunc[fftFrameSize - i];
-                interImag[i] = - interImagTrunc[fftFrameSize - i];
-            }
-
-            fft.ifft(interReal, interImag);
+            fft.ifft(interReal, interImag, true);
             fft.scale(interReal, interImag);
 
             window.window(interReal);

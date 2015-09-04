@@ -3,6 +3,7 @@ package com.example.harry.aug;
 import android.content.Context;
 import android.database.Cursor;
 import android.provider.MediaStore;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +15,7 @@ import java.util.Map;
  * Created by harry on 8/27/15.
  */
 public class SongManager {
+    private static final String TAG = "SongManager";
     private static final String TITLE_KEY = "TITLE_KEY";
     private static final String BPM = "BPM";
 
@@ -76,7 +78,8 @@ public class SongManager {
 
     public Song getSongToAnalyze() {
         for(Song song: songList) {
-            if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {
+            //if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {
+            if(song.get(FIELD_TITLE).equals("sine_long")) { // TODO: remove this
                 return song;
             }
         }
@@ -93,7 +96,7 @@ public class SongManager {
 
                 int durationColumn = cursor.getColumnIndex(FIELD_DURATION);
                 long duration = cursor.getLong(durationColumn);
-                if(duration > 6000) continue; // TODO: remove this constraint
+                if(duration > 12000) continue; // TODO: remove this
 
                 //
 

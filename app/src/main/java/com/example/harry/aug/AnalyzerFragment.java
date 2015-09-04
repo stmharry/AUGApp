@@ -10,6 +10,7 @@ public class AnalyzerFragment extends AUGFragment {
     private static final int NAME_RESOURCE = R.string.fragment_analyzer;
 
     private AUGManager augManager;
+    private boolean noSong;
 
     //
 
@@ -20,8 +21,7 @@ public class AnalyzerFragment extends AUGFragment {
         return fragment;
     }
 
-    public AnalyzerFragment() {
-    }
+    public AnalyzerFragment() {}
 
     //
 
@@ -30,6 +30,12 @@ public class AnalyzerFragment extends AUGFragment {
         super.onActivityCreated(savedInstanceState);
 
         SongManager.Song song = augActivity.getSongManager().getSongToAnalyze();
+
+        if(song == null) {
+            noSong = true;
+            return;
+        }
+
         String songTitle = (String) song.get(SongManager.FIELD_TITLE);
         String songFieldData = (String) song.get(SongManager.FIELD_DATA);
 
@@ -48,7 +54,9 @@ public class AnalyzerFragment extends AUGFragment {
     @Override
     public void onStart() {
         super.onStart();
-        augManager.start();
+        if(!noSong) {
+            augManager.start();
+        }
     }
 
     // TODO: onpause
@@ -56,6 +64,8 @@ public class AnalyzerFragment extends AUGFragment {
     @Override
     public void onStop() {
         super.onStop();
-        augManager.stop();
+        if(!noSong) {
+            augManager.stop();
+        }
     }
 }

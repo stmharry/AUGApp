@@ -5,17 +5,19 @@ import android.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Arrays;
 
 /**
  * Created by harry on 8/28/15.
  */
 public abstract class Analyzer extends AUGComponent {
-    protected int BUFFER_CAPACITY = 4096;
-    protected float FFT_TIME = 0.01f;
-    protected int HOP_RATIO = 4;
+    protected int BUFFER_CAPACITY;
+    protected float FFT_TIME;
+    protected int HOP_RATIO;
 
     protected Window window;
     protected FFT fft;
+    protected Mel mel;
 
     protected FloatBuffer[] inFloatBuffer;
     protected int startSample;
@@ -23,7 +25,7 @@ public abstract class Analyzer extends AUGComponent {
 
     protected int fftFrameSize;
     protected int fftSizeLog;
-    protected int fftSizeCompact;
+    protected int fftFrameSizeCompact;
     protected int fftHopSize;
     protected int fftFrameAndHopSize;
     protected long fftHopSizeUs;
@@ -32,6 +34,7 @@ public abstract class Analyzer extends AUGComponent {
 
     public Analyzer(String TAG, int BUFFER_CAPACITY, float FFT_TIME, int HOP_RATIO) {
         super(TAG);
+
         this.BUFFER_CAPACITY = BUFFER_CAPACITY;
         this.FFT_TIME = FFT_TIME;
         this.HOP_RATIO = HOP_RATIO;
@@ -99,16 +102,12 @@ public abstract class Analyzer extends AUGComponent {
         fftSizeLog = (fftFrameSize == 0)? 0 : (32 - Integer.numberOfLeadingZeros(fftFrameSize - 1));
 
         fftFrameSize = 1 << fftSizeLog;
-        fftSizeCompact = fftFrameSize / 2 + 1;
+        fftFrameSizeCompact = fftFrameSize / 2 + 1;
         fftHopSize = fftFrameSize / HOP_RATIO;
         fftFrameAndHopSize = fftFrameSize + fftHopSize;
         fftHopSizeUs = (S_TO_US * fftHopSize) / sampleRate;
 
         Log.d(TAG, "FFT size = " + String.valueOf(fftFrameSize));
-
-        // Utility
-        fft = new FFT(fftFrameSize, fftSizeLog);
-        window = new Window(fftFrameSize);
     }
 
     @Override
@@ -180,6 +179,7 @@ public abstract class Analyzer extends AUGComponent {
         }
 
         private void reverse(float[] x, float[] y) {
+            // TODO: bit reversal can only be disabled when compacting properly (please do this!)
             int i, j, n1, n2;
             float t1;
 
@@ -204,7 +204,7 @@ public abstract class Analyzer extends AUGComponent {
             }
         }
 
-        public void fft(float[] x, float[] y) {
+        public void fft(float[] x, float[] y, boolean reverse) {
             if ((x.length != n) || (y.length != n)) {
                 throw new RuntimeException();
             }
@@ -212,7 +212,9 @@ public abstract class Analyzer extends AUGComponent {
             int i, j, k, n1, n2, a;
             float c, s, t1, t2;
 
-            reverse(x, y);
+            if(reverse) {
+                reverse(x, y);
+            }
 
             // FFT
             n1 = 0;
@@ -240,7 +242,7 @@ public abstract class Analyzer extends AUGComponent {
             }
         }
 
-        public void ifft(float[] x, float[] y) {
+        public void ifft(float[] x, float[] y, boolean reverse) {
             if ((x.length != n) || (y.length != n)) {
                 throw new RuntimeException();
             }
@@ -248,7 +250,9 @@ public abstract class Analyzer extends AUGComponent {
             int i, j, k, n1, n2, a;
             float c, s, t1, t2;
 
-            reverse(x, y);
+            if(reverse) {
+                reverse(x, y);
+            }
 
             // FFT
             n1 = 0;
@@ -285,6 +289,125 @@ public abstract class Analyzer extends AUGComponent {
                 x[i] /= n;
                 y[i] /= n;
             }
+        }
+    }
+
+    protected class Mel {
+        private final int BASE = 2595;
+        private final int SCALE = 700;
+
+        private int bin;
+        private int k;
+
+        private float[] fftFreq;
+        private float[] melFreq;
+        private float[][] fftToMel;
+
+        public Mel(float minFreq, float maxFreq, int bin, int n, int k, float sr) {
+            this.bin = bin;
+            this.k = k;
+
+            fftFreq = new float[k];
+            for(int i = 0; i < k; i++) {
+                fftFreq[i] = (float) i / n * sr;
+            }
+
+            float minBin = freqToBin(minFreq);
+            float maxBin = freqToBin(maxFreq);
+            melFreq = new float[bin + 2];
+            for(int i = 0; i <= bin + 1; i++) {
+                melFreq[i] = binToFreq(minBin + (float) i / (bin + 1) * (maxBin - minBin));
+            }
+
+            float low, high, res;
+            fftToMel = new float[bin][];
+            for(int i = 0; i < bin; i++) {
+                fftToMel[i] = new float[k];
+                for(int j = 0; j < k; j++) {
+                    low = (fftFreq[j] - melFreq[i]) / (melFreq[i + 1] - melFreq[i]);
+                    high = (melFreq[i + 2] - fftFreq[j]) / (melFreq[i + 2] - melFreq[i + 1]);
+                    res = ((low < high)? low : high) * 2 / (melFreq[i + 2] - melFreq[i]);
+                    fftToMel[i][j] = (res > 0)? res : 0;
+                }
+            }
+        }
+
+        public float[] mel(float[] in) {
+            float[] out = new float[bin];
+            for(int i = 0; i < bin; i++) {
+                for(int j = 0; j < k; j++) {
+                    out[i] += fftToMel[i][j] * in[j];
+                }
+            }
+            return out;
+        }
+
+        private float freqToBin(float freq) {
+            return (float)(BASE * Math.log10(1 + freq / SCALE));
+        }
+
+        private float binToFreq(float bin) {
+            return (float)(SCALE * (Math.pow(10, bin / BASE) - 1));
+        }
+    }
+
+    protected class Util {
+        public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
+            int length = x.length;
+
+            for(int i = 0; i < length; i++) {
+                r[i] = (float)(Math.sqrt(x[i] * x[i] + y[i] * y[i]));
+                t[i] = (float)(Math.atan2(y[i], x[i]));
+            }
+        }
+
+        public void pol2cart(float[] x, float[] y, float[] r, float[] t) {
+            int length = r.length;
+
+            for(int i = 0; i < length; i++) {
+                x[i] = r[i] * (float)(Math.cos(t[i]));
+                y[i] = r[i] * (float)(Math.sin(t[i]));
+            }
+        }
+
+        public float[] expand(float[] in, boolean pos) {
+            int inLength = in.length;
+            int outLength = 2 * (inLength - 1);
+
+            float[] out = new float[outLength];
+
+            for(int i = 0; i < inLength; i++) {
+                out[i] = in[i];
+            }
+
+            for(int i = inLength; i < outLength; i++) {
+                out[i] = pos? in[outLength - i] : -in[outLength - i];
+            }
+
+            return out;
+        }
+
+        public float[] compact(float[] in) {
+            return Arrays.copyOf(in, in.length / 2 + 1);
+        }
+
+        public float[] downSample(float[] in, int ratio) {
+            int outSize = in.length / ratio;
+            float[] out = new float[outSize];
+            for(int i = 0; i < outSize; i++) {
+                out[i] = in[i * ratio];
+            }
+            return out;
+        }
+
+        public float[] db(float[] in) {
+            int length = in.length;
+
+            float[] out = new float[length];
+            for(int i = 0; i < length; i++) {
+                out[i] = (float)(20 * Math.log10(in[i]));
+            }
+            return out;
         }
     }
 }

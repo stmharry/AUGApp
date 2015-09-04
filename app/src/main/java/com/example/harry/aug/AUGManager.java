@@ -33,12 +33,6 @@ public class AUGManager {
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
         this.AUGComponents = AUGComponents;
-        /*
-        this.AUGComponents = new AUGComponent[]{
-                new Decoder(this),
-                new PhaseVocoderAnalyzer(this),
-                new AudioPlayer(this)};
-                */
 
         this.handler = new Handler(Looper.getMainLooper());
         this.timeUpdater = new TimeUpdater();
