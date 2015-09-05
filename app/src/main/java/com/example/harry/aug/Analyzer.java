@@ -226,6 +226,10 @@ public abstract class Analyzer extends AUGComponent {
             }
         }
 
+        public int getN() {
+            return n;
+        }
+
         private void reverse(float[] x, float[] y) {
             // TODO: bit reversal can only be disabled when compacting properly (please do this!)
             int i, j, n1, n2;
@@ -404,6 +408,32 @@ public abstract class Analyzer extends AUGComponent {
             return (x == 0)? 0 : (32 - Integer.numberOfLeadingZeros(x - 1));
         }
 
+        public float maxValue(float[] in) {
+            float[] out = max(in);
+            return out[0];
+        }
+
+        public int maxIndex(float[] in) {
+            float[] out = max(in);
+            return (int) out[1];
+        }
+
+        public float[] max(float[] in) {
+            int length = in.length;
+
+            float max = in[0];
+            int maxIndex = 0;
+            for(int i = 0; i < length; i++) {
+                if(in[i] > max) {
+                    max = in[i];
+                    maxIndex = i;
+                }
+            }
+            return new float[] {max, maxIndex};
+        }
+
+        //
+
         public void cart2pol(float[] r, float[] t, float[] x, float[] y) {
             int length = x.length;
 
@@ -421,6 +451,8 @@ public abstract class Analyzer extends AUGComponent {
                 y[i] = r[i] * (float)(Math.sin(t[i]));
             }
         }
+
+        //
 
         public float[] expand(float[] in, boolean pos) {
             int inLength = in.length;
@@ -454,20 +486,6 @@ public abstract class Analyzer extends AUGComponent {
                 out[i] = in[i * ratio];
             }
             return out;
-        }
-
-        public int maxIndex(float[] in) {
-            int length = in.length;
-
-            float max = in[0];
-            int maxIndex = 0;
-            for(int i = 0; i < length; i++) {
-                if(in[i] > max) {
-                    max = in[i];
-                    maxIndex = i;
-                }
-            }
-            return maxIndex;
         }
     }
 }

@@ -99,7 +99,7 @@ public class AnalyzerFragment extends AUGFragment {
                     str = String.format("STATE_ONSET: %.3f (%d/%d)", (float) curTime / allTime, curTime, allTime);
                     break;
                 case STATE_TEMPO:
-                    int curIteration = labROSAAnalyzer.getIteration();
+                    int curIteration = labROSAAnalyzer.getSelection();
                     int allIteration = labROSAAnalyzer.getSelectionSize();
                     str = String.format("STATE_TEMPO: %.2f (%d/%d)", (float) curIteration / allIteration, curIteration, allIteration);
                     break;

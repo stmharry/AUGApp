@@ -14,29 +14,37 @@ public class LabROSAAnalyzer extends Analyzer {
     private static final int SAMPLE_RATE_TARGET = 8000;
     private static final float FFT_TIME = 0.05f;
     private static final int FFT_HOP_RATIO = 8;
+
     private static final int MEL_BIN = 40;
+
     private static final int SELECTION_DURATION = 12;
     private static final int SELECTION_SIZE = 32;
+
     private static final int TEMPO_CENTER = 140;
     private static final int TEMPO_SPREAD = 1;
+
+    private static final float BEAT_PARENT_RANGE = 2;
+    private static final float BEAT_COST = 400;
+    private static final float BEAT_PENALTY = 1.0f;
 
     private FFT envFFT;
     private State state;
     private Util util;
 
     private int frame;
-
     private float envSampleRate;
-    private int envFrameSize;
-    private int envFFTSizeLog;
-    private int envFFTFrameSize;
 
     private float[][] inMelDBLast;
     private float[] onsetEnvelope;
-    private int onsetEnvelopeIndex;
+    private int onsetEnvelopeSize;
+    private int selection;
     private int selectionSize;
-    private int iteration;
-    private float finalTempo;
+
+    //
+
+    private float tempoFinal;
+    private float tempoScore;
+    private long[] beatTime;
 
     //
 
@@ -61,8 +69,88 @@ public class LabROSAAnalyzer extends Analyzer {
         return selectionSize;
     }
 
-    public int getIteration() {
-        return iteration;
+    public int getSelection() {
+        return selection;
+    }
+
+    //
+
+    private void analyzeTempo() {
+        state = State.STATE_TEMPO;
+
+        int envFrameSize = (int) (SELECTION_DURATION * envSampleRate);
+        selectionSize = SELECTION_SIZE;
+        if(envFrameSize > onsetEnvelopeSize) {
+            envFrameSize = onsetEnvelopeSize;
+            selectionSize = 1;
+        }
+
+        int envFFTSizeLog = util.nextpow2(2 * envFrameSize - 1);
+        int envFFTFrameSize = 1 << envFFTSizeLog;
+        envFFT = new FFT(envFFTFrameSize, envFFTSizeLog);
+
+        util.normalize(onsetEnvelope);
+        float[] tempo = new float[selectionSize];
+        for(selection = 0; selection < selectionSize; selection++) {
+            float[] onsetSegment = util.select(onsetEnvelope, envFrameSize);
+            float[] onsetCorr = Arrays.copyOf(util.xcorr(onsetSegment), envFrameSize);
+            util.window(onsetCorr);
+
+            tempo[selection] = 60 * envSampleRate / util.maxIndex(onsetCorr);
+        }
+
+        tempoFinal = util.mode(tempo);
+        tempoScore = util.score(tempo, tempoFinal);
+
+        Log.d(TAG, String.format("tempoFinal = %.2f, tempoScore = %.2f", tempoFinal, tempoScore));
+    }
+
+    private void analyzeBeat() {
+        state = State.STATE_BEAT;
+
+        int period = (int)(60 * envSampleRate / tempoFinal);
+        int periodLow = (int)(period / BEAT_PARENT_RANGE);
+        int periodHigh = (int)(period * BEAT_PARENT_RANGE);
+        int periodRange = periodHigh - periodLow;
+        Log.d(TAG, "period = " + String.valueOf(period));
+
+        int[] parentRange = new int[periodRange];
+        float[] penalty = new float[periodRange];
+        for(int i = 0; i < periodRange; i++) {
+            parentRange[i] = i + periodLow;
+            penalty[i] = (float)(Math.log((float) parentRange[i] / period) / Math.log(2));
+            penalty[i] = BEAT_COST * penalty[i] * penalty[i];
+        }
+
+        int[] parent = new int[onsetEnvelopeSize];
+        float[] score = new float[onsetEnvelopeSize];
+        float[] scoreThis = new float[periodRange];
+
+        util.smooth(onsetEnvelope, period);
+        for(int i = 0; i < onsetEnvelopeSize; i++) {
+            for(int j = 0; j < periodRange; j++) {
+                int index = i - parentRange[j];
+                scoreThis[j] = ((index > 0)? score[index] : 0) - penalty[j];
+            }
+
+            float[] max = util.max(scoreThis);
+            parent[i] = i - parentRange[(int) max[1]];
+            score[i] = max[0] + onsetEnvelope[i] - BEAT_PENALTY;
+        }
+
+        int[] beat = new int[onsetEnvelopeSize];
+        int beatIndex = 0;
+
+        beat[beatIndex] = util.maxIndex(score);
+        do {
+            beat[beatIndex + 1] = parent[beat[beatIndex]];
+        } while(beat[++beatIndex] >= 0);
+
+        beat = util.flip(Arrays.copyOf(beat, beatIndex));
+        beatTime = new long[beatIndex];
+        for(int i = 0; i < beatIndex; i++) {
+            beatTime[i] = (long)(beat[i] / envSampleRate * S_TO_US);
+        }
     }
 
     //
@@ -125,40 +213,16 @@ public class LabROSAAnalyzer extends Analyzer {
             inMelDBLast[i] = inMelDB;
         }
 
-        onsetEnvelope[onsetEnvelopeIndex++] = inMelDBDiffSum;
-
+        onsetEnvelope[onsetEnvelopeSize++] = inMelDBDiffSum;
+        // TODO: onsetEnvelopeSize = frame
         frame++;
         startSample = floorLeftSample;
 
         if(inputEOS && inputQueue.isEmpty()) {
-            state = State.STATE_TEMPO;
+            myLogArray("onsetEnvelope", onsetEnvelope);
 
-            envFrameSize = (int)(SELECTION_DURATION * envSampleRate);
-            selectionSize = SELECTION_SIZE;
-            if(envFrameSize > onsetEnvelopeIndex) {
-                envFrameSize = onsetEnvelopeIndex;
-                selectionSize = 1;
-            }
-
-            envFFTSizeLog = util.nextpow2(2 * envFrameSize - 1);
-            envFFTFrameSize = 1 << envFFTSizeLog;
-            envFFT = new FFT(envFFTFrameSize, envFFTSizeLog);
-
-            util.normalize(onsetEnvelope);
-            float[] tempo = new float[selectionSize];
-            for(int iteration = 0; iteration < selectionSize; iteration++) {
-                float[] onsetSegment = util.select(onsetEnvelope, envFrameSize);
-                float[] onsetCorr = util.xcorr(onsetSegment);
-                util.window(onsetCorr);
-
-                tempo[iteration] = 60 * envSampleRate / util.maxIndex(onsetCorr);
-            }
-            finalTempo = util.mode(tempo);
-            float score = util.score(tempo, finalTempo);
-            Log.d(TAG, String.format("finalTempo = %.2f, score = %.2f", finalTempo, score));
-
-            state = State.STATE_BEAT;
-
+            analyzeTempo();
+            analyzeBeat();
             setOutputEOS();
         }
     }
@@ -229,21 +293,58 @@ public class LabROSAAnalyzer extends Analyzer {
             return Arrays.copyOfRange(in, start, start + size);
         }
 
-        public float[] xcorr(float[] in) {
+        public int[] flip(int[] in) {
             int length = in.length;
+            int[] out = new int[length];
 
-            float[] inReal = Arrays.copyOf(in, envFFTFrameSize);
-            float[] inImag = new float[envFFTFrameSize];
+            for(int i = 0; i < length; i++) {
+                out[i] = in[length - 1 - i];
+            }
+
+            return out;
+        }
+
+        public float[] xcorr(float[] in) {
+            int n = envFFT.getN();
+
+            float[] inReal = Arrays.copyOf(in, n);
+            float[] inImag = new float[n];
+
             envFFT.fft(inReal, inImag, true);
 
-            for(int i = 0; i < envFFTFrameSize; i++) {
+            for(int i = 0; i < n; i++) {
                 inReal[i] = inReal[i] * inReal[i] + inImag[i] * inImag[i];
                 inImag[i] = 0;
             }
+
             envFFT.ifft(inReal, inImag, true);
             envFFT.scale(inReal, inImag);
 
-            return Arrays.copyOf(inReal, length);
+            return inReal;
+        }
+
+        public float[] xcorr(float[] in1, float[] in2) {
+            int n = envFFT.getN();
+
+            float[] inReal1 = Arrays.copyOf(in1, n);
+            float[] inImag1 = new float[n];
+            float[] inReal2 = Arrays.copyOf(in2, n);
+            float[] inImag2 = new float[n];
+
+            envFFT.fft(inReal1, inImag1, true);
+            envFFT.fft(inReal2, inImag2, true);
+
+            float[] outReal = new float[n];
+            float[] outImag = new float[n];
+            for(int i = 0; i < n; i++) {
+                outReal[i] = inReal1[1] * inReal2[i] + inImag1[i] * inImag2[i];
+                outImag[i] = - inReal1[i] * inImag2[i] + inReal2[i] * inImag1[i];
+            }
+
+            envFFT.ifft(outReal, outImag, true);
+            envFFT.scale(outReal, outImag);
+
+            return outReal;
         }
 
         public void window(float[] in) {
@@ -255,6 +356,32 @@ public class LabROSAAnalyzer extends Analyzer {
                 weight = (float)(Math.log(60 * envSampleRate / i / TEMPO_CENTER) / log2 / TEMPO_SPREAD);
                 in[i] *= (float) Math.exp(- weight * weight / 2);
             }
+        }
+
+        private final float WIDTH = 0.05f;
+
+        public void smooth(float[] in, int period) {
+            int length = in.length;
+            int filterLength = 2 * period + 1;
+
+            float[] filter = new float[filterLength];
+            for(int i = 0; i < filterLength; i++) {
+                float num = (i - period) / (period * WIDTH);
+                filter[i] = (float)(Math.exp(- num * num / 2));
+            }
+
+            float[] out = new float[length];
+            for(int i = 0; i < length; i++) {
+                for(int j = 0; j < filterLength; j++) {
+                    int index = i + j - period;
+                    if((index < 0) || (index >= length)) {
+                        continue;
+                    }
+                    out[i] += in[index] * filter[j];
+                }
+            }
+
+            System.arraycopy(out, 0, in, 0, length);
         }
 
         private final int ITERATION = 16;

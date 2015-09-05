@@ -30,6 +30,7 @@ public class AudioPlayer extends AUGComponent {
     @Override
     public synchronized long getTime() {
         long thisTime = (audioTrack == null)? AUGManager.UPDATE_FAIL : (audioTrack.getPlaybackHeadPosition() * S_TO_US) / sampleRate;
+        Log.d(TAG, "thisTime = " + String.valueOf(thisTime));
         return thisTime;
     }
 

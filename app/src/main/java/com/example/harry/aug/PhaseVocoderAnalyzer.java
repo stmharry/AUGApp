@@ -161,7 +161,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         }
 
         frame += speed;
-        speed += 0.0001;
+        //speed += 0.0001;
         startSample = floorLeftSample;
 
         //
