@@ -28,8 +28,7 @@ public class Decoder extends AUGComponent {
 
     @Override
     public synchronized long getTime() {
-        long nextTime = next.getTime();
-        return (nextTime == AUGManager.UPDATE_FAIL)? AUGManager.UPDATE_FAIL : nextTime;
+        return next.getTime();
     }
 
     /////////////
@@ -105,9 +104,7 @@ public class Decoder extends AUGComponent {
             outputBuffers = mediaCodec.getOutputBuffers();
         } else if(outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             mediaFormat = mediaCodec.getOutputFormat();
-        } else if(outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-            Log.d(TAG, "Output buffer drained!");
-        }
+        } else if(outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {}
 
         if((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
             setOutputEOS();

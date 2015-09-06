@@ -24,6 +24,8 @@ public abstract class Analyzer extends AUGComponent {
     protected FloatBuffer[] inFloatBuffer;
     protected int startSample;
     protected int endSample;
+    protected int floorLeftSample;
+    protected int ceilRightSample;
     protected int downSampleRatio;
 
     protected int fftFrameSize;
@@ -75,7 +77,15 @@ public abstract class Analyzer extends AUGComponent {
 
     //
 
+    protected boolean isUnderFlow() {
+        return (endSample / downSampleRatio < ceilRightSample);
+    }
+
     protected void requireInput(int requiredEndSample) {
+        if(inputEOS && inputQueue.isEmpty()) {
+            return;
+        }
+
         requiredEndSample *= downSampleRatio;
 
         while(endSample < requiredEndSample) {
@@ -86,8 +96,6 @@ public abstract class Analyzer extends AUGComponent {
                 ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortArray);
 
                 int numSample = byteArray.length / (numChannel * BYTE_PER_SHORT);
-                myLogD("--- [requireInput] ---");
-                myLogD("numSample = " + String.valueOf(numSample));
                 for(int i = 0; i < numChannel; i++) {
                     float[] floatArray = new float[numSample];
                     for(int j = 0; j < numSample; j++) {
@@ -104,7 +112,6 @@ public abstract class Analyzer extends AUGComponent {
                 }
 
                 endSample += numSample;
-                myLogD("endSample = " + String.valueOf(endSample));
             }
         }
     }
@@ -112,10 +119,6 @@ public abstract class Analyzer extends AUGComponent {
     protected float[] getFrame(FloatBuffer inBuffer, int position, int inSize) {
         position *= downSampleRatio;
         inSize *= downSampleRatio;
-
-        myLogD("--- [getFrame] ---");
-        myLogD("position = " + String.valueOf(position));
-        myLogD("inSize = " + String.valueOf(inSize));
 
         float[] in = new float[inSize];
 
@@ -163,7 +166,7 @@ public abstract class Analyzer extends AUGComponent {
         super.start();
 
         //
-        startSample = 1;
+        startSample = 0;
         endSample = 0;
 
         //

@@ -1,9 +1,10 @@
 package com.example.harry.aug;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.nio.ShortBuffer;
 import java.util.Arrays;
 
 /**
@@ -20,12 +21,18 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private Util util;
     private FloatBuffer[] outFloatBuffer;
     private FloatBuffer frameBuffer;
+    private float[] frameRecord;
 
     private float[][] phase;
 
     private float speed;
+    private int normalFrame;
     private float frame;
     private int removedFrame;
+
+    private int floorFrame;
+    private float fracFrame;
+
 
     public static PhaseVocoderAnalyzer newInstance() {
         return new PhaseVocoderAnalyzer();
@@ -43,25 +50,47 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         if(nextTime == AUGManager.UPDATE_FAIL) {
             return AUGManager.UPDATE_FAIL;
         }
-        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
-        int floorNextFrame = (int) (Math.floor(nextFrame));
+        float nextFrame = (float) nextTime / fftHopSizeUs;
+        int floorNextFrame = (int) Math.floor(nextFrame);
         float fracNextFrame = nextFrame - floorNextFrame;
 
-        // TODO: fix this
+        float leftFrame = frameRecord[floorNextFrame];
+        float rightFrame = leftFrame;
+
+        if(floorNextFrame < frameRecord.length) {
+            if(frameRecord[floorNextFrame + 1] != 0) {
+                rightFrame = frameRecord[floorNextFrame + 1];
+            }
+        }
+
+        float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
+        long thisTime = (long) (thisFrame * fftHopSizeUs);
+
+        return thisTime;
+    }
+
+    //@Override
+    public synchronized long _getTime() {
+        long nextTime = next.getTime();
+        if(nextTime == AUGManager.UPDATE_FAIL) {
+            return AUGManager.UPDATE_FAIL;
+        }
+
+        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
+        int floorNextFrame = (int) Math.floor(nextFrame);
+        float fracNextFrame = nextFrame - floorNextFrame;
 
         myLogD("--- [SEEK] ---");
         myLogD("nextTime = " + String.valueOf(nextTime));
         myLogD("nextFrame = " + String.valueOf(nextFrame));
         myLogD("removedFrame = " + String.valueOf(removedFrame));
 
-        float leftFrame;
-        float rightFrame;
         frameBuffer.flip();
         frameBuffer.position(floorNextFrame);
         frameBuffer.mark();
 
-        leftFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : 0;
-        rightFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : leftFrame;
+        float leftFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : 0;
+        float rightFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : leftFrame;
         myLogD("leftFrame = " + String.valueOf(leftFrame));
         myLogD("rightFrame = " + String.valueOf(rightFrame));
 
@@ -93,7 +122,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         outBuffer.put(Arrays.copyOfRange(outTemp, fftHopSize, fftFrameSize));
         outBuffer.put(new float[fftHopSize]);
 
-        return Arrays.copyOfRange(outTemp, 0, fftHopSize);
+        return outTemp;
     }
 
     //
@@ -113,8 +142,11 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     public void start() {
         super.start();
 
+        normalFrame = 0;
         frame = 0;
         removedFrame = 0;
+        floorLeftSample = 0;
+        ceilRightSample = fftFrameAndHopSize;
 
         outFloatBuffer = new FloatBuffer[numChannel];
         for(int i = 0; i < numChannel; i++) {
@@ -122,6 +154,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             outFloatBuffer[i].put(new float[fftFrameSize]);
         }
         frameBuffer = FloatBuffer.allocate(BUFFER_CAPACITY);
+        frameRecord = new float[BUFFER_CAPACITY];
 
         phase = new float[numChannel][];
     }
@@ -130,16 +163,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     public void operation() {
         super.operation();
 
-        int floorFrame = (int)(Math.floor(frame));
-        float fracFrame = frame - floorFrame;
-        int floorLeftSample = floorFrame * fftHopSize + 1;
-
-        myLogD("--- [ACTION] ---");
-        myLogD("frame = " + String.valueOf(frame));
-        myLogD("startSample = " + String.valueOf(startSample));
-        myLogD("floorLeftSample = " + String.valueOf(floorLeftSample));
-
-        requireInput(floorLeftSample + fftFrameAndHopSize);
+        requireInput(ceilRightSample);
 
         float[][] out = new float[numChannel][];
         for(int i = 0; i < numChannel; i++) {
@@ -151,6 +175,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             out[i] = setOutput(outFloatBuffer[i], inter);
         }
 
+        /*
         frameBuffer.put(frame);
         if (frameBuffer.position() == frameBuffer.limit()) {
             int thisRemovedSize = frameBuffer.position() - BUFFER_QUEUE_CAPACITY;
@@ -158,11 +183,20 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
             frameBuffer.position(thisRemovedSize);
             frameBuffer.compact();
-        }
+        }*/
 
+        frameRecord[normalFrame] = frame;
+        if(normalFrame >= frameRecord.length) {
+            frameRecord = Arrays.copyOf(frameRecord, 2 * frameRecord.length);
+        }
+        normalFrame++;
         frame += speed;
         //speed += 0.0001;
         startSample = floorLeftSample;
+        floorFrame = (int)(Math.floor(frame));
+        fracFrame = frame - floorFrame;
+        floorLeftSample = floorFrame * fftHopSize;
+        ceilRightSample = floorLeftSample + fftFrameAndHopSize;
 
         //
         short[] shortBufferArray = new short[fftHopSize * numChannel];
@@ -174,14 +208,14 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
         int byteBufferSize = fftHopSize * numChannel * BYTE_PER_SHORT;
         byte[] byteBufferArray = new byte[byteBufferSize];
+
         ByteBuffer byteBuffer = ByteBuffer.allocate(byteBufferSize);
-        ShortBuffer shortBuffer = byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
-        shortBuffer.put(shortBufferArray).flip();
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shortBufferArray);
         byteBuffer.get(byteBufferArray);
 
         next.queueInput(byteBufferArray);
 
-        if(inputEOS && inputQueue.isEmpty()) {
+        if(inputEOS && inputQueue.isEmpty() && isUnderFlow()) {
             setOutputEOS();
         }
     }
@@ -197,6 +231,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     }
 
     //
+
     private class Util extends Analyzer.Util {
         public void process(float[] r, float[] t, float[] real) {
             float[] imag = new float[fftFrameSize];

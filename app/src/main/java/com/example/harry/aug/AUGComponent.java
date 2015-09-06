@@ -33,6 +33,9 @@ public abstract class AUGComponent implements Runnable {
     protected int numChannel;
     protected long duration;
 
+    private int totalInSize;
+    private int totalOutSize;
+
     //
 
     public AUGComponent(String TAG) {
@@ -60,6 +63,8 @@ public abstract class AUGComponent implements Runnable {
     public void setOutputEOS() {
         this.outputEOS = true;
         Log.d(TAG, "Output EOS");
+        Log.d(TAG, "totalInSize = " + String.valueOf(totalInSize));
+        Log.d(TAG, "totalOutSize = " + String.valueOf(totalOutSize));
 
         if(next != null) {
             next.setInputEOS();
@@ -78,6 +83,7 @@ public abstract class AUGComponent implements Runnable {
         } catch(InterruptedException e) {
             e.printStackTrace();
         }
+        prev.totalOutSize += buffer.length;
     }
 
     public byte[] dequeueInput(long timeoutUs) {
@@ -87,6 +93,9 @@ public abstract class AUGComponent implements Runnable {
         } catch(InterruptedException e) {
             e.printStackTrace();
             return null;
+        }
+        if(buffer != null) {
+            totalInSize += buffer.length;
         }
         return buffer;
     }

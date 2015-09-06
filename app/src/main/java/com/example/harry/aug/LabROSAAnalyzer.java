@@ -36,7 +36,6 @@ public class LabROSAAnalyzer extends Analyzer {
 
     private float[][] inMelDBLast;
     private float[] onsetEnvelope;
-    private int onsetEnvelopeSize;
     private int selection;
     private int selectionSize;
 
@@ -80,8 +79,8 @@ public class LabROSAAnalyzer extends Analyzer {
 
         int envFrameSize = (int) (SELECTION_DURATION * envSampleRate);
         selectionSize = SELECTION_SIZE;
-        if(envFrameSize > onsetEnvelopeSize) {
-            envFrameSize = onsetEnvelopeSize;
+        if(envFrameSize > frame) {
+            envFrameSize = frame;
             selectionSize = 1;
         }
 
@@ -122,12 +121,12 @@ public class LabROSAAnalyzer extends Analyzer {
             penalty[i] = BEAT_COST * penalty[i] * penalty[i];
         }
 
-        int[] parent = new int[onsetEnvelopeSize];
-        float[] score = new float[onsetEnvelopeSize];
+        int[] parent = new int[frame];
+        float[] score = new float[frame];
         float[] scoreThis = new float[periodRange];
 
         util.smooth(onsetEnvelope, period);
-        for(int i = 0; i < onsetEnvelopeSize; i++) {
+        for(int i = 0; i < frame; i++) {
             for(int j = 0; j < periodRange; j++) {
                 int index = i - parentRange[j];
                 scoreThis[j] = ((index > 0)? score[index] : 0) - penalty[j];
@@ -138,7 +137,7 @@ public class LabROSAAnalyzer extends Analyzer {
             score[i] = max[0] + onsetEnvelope[i] - BEAT_PENALTY;
         }
 
-        int[] beat = new int[onsetEnvelopeSize];
+        int[] beat = new int[frame];
         int beatIndex = 0;
 
         beat[beatIndex] = util.maxIndex(score);
@@ -176,14 +175,15 @@ public class LabROSAAnalyzer extends Analyzer {
 
         state = State.STATE_ONSET;
         frame = 0;
+        floorLeftSample = 0;
+        ceilRightSample = fftFrameSize;
     }
 
     @Override
     public void operation() {
         super.operation();
 
-        int floorLeftSample = frame * fftHopSize + 1;
-        requireInput(floorLeftSample + fftFrameSize);
+        requireInput(ceilRightSample);
 
         float inMelDBDiffSum = 0;
         for(int i = 0; i < numChannel; i++) {
@@ -213,14 +213,13 @@ public class LabROSAAnalyzer extends Analyzer {
             inMelDBLast[i] = inMelDB;
         }
 
-        onsetEnvelope[onsetEnvelopeSize++] = inMelDBDiffSum;
-        // TODO: onsetEnvelopeSize = frame
+        onsetEnvelope[frame] = inMelDBDiffSum;
         frame++;
         startSample = floorLeftSample;
+        floorLeftSample = frame * fftHopSize;
+        ceilRightSample = floorLeftSample + fftFrameSize;
 
-        if(inputEOS && inputQueue.isEmpty()) {
-            myLogArray("onsetEnvelope", onsetEnvelope);
-
+        if(inputEOS && inputQueue.isEmpty() && isUnderFlow()) {
             analyzeTempo();
             analyzeBeat();
             setOutputEOS();
