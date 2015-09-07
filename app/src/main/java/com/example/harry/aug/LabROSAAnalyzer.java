@@ -148,7 +148,7 @@ public class LabROSAAnalyzer extends Analyzer {
         beat = util.flip(Arrays.copyOf(beat, beatIndex));
         beatTime = new long[beatIndex];
         for(int i = 0; i < beatIndex; i++) {
-            beatTime[i] = (long)(beat[i] / envSampleRate * S_TO_US);
+            beatTime[i] = (long)((beat[i] / envSampleRate) * S_TO_US);
         }
     }
 
@@ -220,6 +220,8 @@ public class LabROSAAnalyzer extends Analyzer {
         ceilRightSample = floorLeftSample + fftFrameSize;
 
         if(inputEOS && inputQueue.isEmpty() && isUnderFlow()) {
+            myLogArray("onsetEnvelope", onsetEnvelope);
+
             analyzeTempo();
             analyzeBeat();
             setOutputEOS();

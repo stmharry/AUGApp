@@ -3,7 +3,6 @@ package com.example.harry.aug;
 import android.content.Context;
 import android.database.Cursor;
 import android.provider.MediaStore;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,7 +78,7 @@ public class SongManager {
     public Song getSongToAnalyze() {
         for(Song song: songList) {
             //if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(BPM + song.get(FIELD_TITLE_KEY), 0) == 0) {\
-            if(song.get(FIELD_TITLE).equals("AND HIS NAME IS JOHN CENA")) { // TODO: remove this
+            if(song.get(FIELD_TITLE).equals("ZHU - Faded")) { // TODO: remove this
                 return song;
             }
         }

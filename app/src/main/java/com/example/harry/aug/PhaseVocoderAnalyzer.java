@@ -1,7 +1,5 @@
 package com.example.harry.aug;
 
-import android.util.Log;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -125,6 +123,24 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         return outTemp;
     }
 
+    private byte[] convertOutput(float[][] out) {
+        short[] shortBufferArray = new short[fftHopSize * numChannel];
+        for(int i = 0; i < numChannel; i++) {
+            for(int j = 0; j < fftHopSize; j++) {
+                shortBufferArray[j * numChannel + i] = (short)(out[i][j]);
+            }
+        }
+
+        int byteBufferSize = fftHopSize * numChannel * BYTE_PER_SHORT;
+        byte[] byteBufferArray = new byte[byteBufferSize];
+
+        ByteBuffer byteBuffer = ByteBuffer.allocate(byteBufferSize);
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shortBufferArray);
+        byteBuffer.get(byteBufferArray);
+
+        return byteBufferArray;
+    }
+
     //
 
     @Override
@@ -199,20 +215,7 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         ceilRightSample = floorLeftSample + fftFrameAndHopSize;
 
         //
-        short[] shortBufferArray = new short[fftHopSize * numChannel];
-        for(int i = 0; i < numChannel; i++) {
-            for(int j = 0; j < fftHopSize; j++) {
-                shortBufferArray[j * numChannel + i] = (short)(out[i][j]);
-            }
-        }
-
-        int byteBufferSize = fftHopSize * numChannel * BYTE_PER_SHORT;
-        byte[] byteBufferArray = new byte[byteBufferSize];
-
-        ByteBuffer byteBuffer = ByteBuffer.allocate(byteBufferSize);
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shortBufferArray);
-        byteBuffer.get(byteBufferArray);
-
+        byte[] byteBufferArray = convertOutput(out);
         next.queueInput(byteBufferArray);
 
         if(inputEOS && inputQueue.isEmpty() && isUnderFlow()) {
