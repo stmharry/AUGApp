@@ -38,9 +38,9 @@ public class SongAdapter extends BaseAdapter {
         TextView artistView = (TextView) songLayout.findViewById(R.id.song_artist);
         TextView durationView = (TextView) songLayout.findViewById(R.id.song_duration);
 
-        SongManager.Song song = songManager.getSongList().get(position);
-        titleView.setText((String) (song.get(Media.TITLE)));
-        artistView.setText((String) (song.get(Media.ARTIST)));
+        Song song = songManager.getSongList().get(position);
+        titleView.setText((String) (song.get(Song.FIELD_TITLE)));
+        artistView.setText((String) (song.get(Song.FIELD_ARTIST)));
 
         Time time = new Time();
         time.set((long)(song.get(Media.DURATION)));

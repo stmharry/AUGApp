@@ -36,12 +36,14 @@ public class AUGActivity extends AppCompatActivity {
             AUG_FRAGMENT_MINOR_CURRENT,
             AUG_FRAGMENT_ANALYZER;
 
-    private final AUGFragment[] AUG_FRAGMENT_MAJOR = new AUGFragment[] {
+    public final AUGFragment[] AUG_FRAGMENT_MAJOR = new AUGFragment[] {
             AUG_FRAGMENT_ROOT = AUG_FRAGMENT_LIST = ListFragment.newInstance(),
-            AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance()};
+            AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance()
+    };
 
-    private final AUGFragment[] AUG_FRAGMENT_MINOR = new AUGFragment[] {
-            AUG_FRAGMENT_ANALYZER = AnalyzerFragment.newInstance()};
+    public final AUGFragment[] AUG_FRAGMENT_MINOR = new AUGFragment[] {
+            AUG_FRAGMENT_ANALYZER = AnalyzerFragment.newInstance()
+    };
 
     //
 

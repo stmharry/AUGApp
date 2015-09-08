@@ -39,15 +39,17 @@ public class AnalyzerFragment extends AUGFragment {
                 ANALYZER_ANALYZER = LabROSAAnalyzer.newInstance()};
         TimeUpdater timeUpdater = new TimeUpdater();
 
-        SongManager.Song song = augActivity.getSongManager().getSongToAnalyze();
+        SongManager songManager = augActivity.getSongManager();
+        songManager.setSongByFragment(this, songManager.getSongByTitle("ZHU - Faded")); // TODO: remove constraint
+        Song song = songManager.getSongByFragment(this);
 
         if(song == null) {
             noSong = true;
             return;
         }
 
-        String songTitle = (String) song.get(SongManager.FIELD_TITLE);
-        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
+        String songTitle = (String) song.get(Song.FIELD_TITLE);
+        String songFieldData = (String) song.get(Song.FIELD_DATA);
 
         TextView analyzerInfoTextView = (TextView) augActivity.findViewById(R.id.analyzer_info);
         analyzerInfoTextView.setText("Analyzing: " + songTitle); //
@@ -65,7 +67,13 @@ public class AnalyzerFragment extends AUGFragment {
         }
     }
 
-    // TODO: onpause
+    @Override
+    public void onPause() {
+        super.onPause();
+        if(!noSong) {
+            augManager.pause();
+        }
+    }
 
     @Override
     public void onStop() {

@@ -14,7 +14,7 @@ public class AUGManager {
 
     public static final int UPDATE_FAIL = -1;
 
-    private AUGActivity activity;
+    private AUGActivity augActivity;
     private State state;
     private MediaExtractor mediaExtractor;
     private AUGComponent[] AUGComponents;
@@ -22,15 +22,15 @@ public class AUGManager {
     private AUGTimeUpdater augTimeUpdater;
     private Destroyer destroyer;
 
-    public AUGManager(AUGActivity activity, AUGComponent[] AUGComponents, AUGTimeUpdater augTimeUpdater) {
-        this.activity = activity;
+    public AUGManager(AUGActivity augActivity, AUGComponent[] AUGComponents, AUGTimeUpdater augTimeUpdater) {
+        this.augActivity = augActivity;
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
         this.AUGComponents = AUGComponents;
 
         this.handler = new Handler(Looper.getMainLooper());
         this.augTimeUpdater = augTimeUpdater;
-        this.augTimeUpdater.setAUGActivity(activity);
+        this.augTimeUpdater.setAUGActivity(augActivity);
         this.augTimeUpdater.setAUGManager(this);
         this.destroyer = new Destroyer();
 
@@ -41,6 +41,10 @@ public class AUGManager {
     }
 
     //
+
+    public AUGActivity getAUGActivity() {
+        return augActivity;
+    }
 
     public State getState() {
         return state;
@@ -84,7 +88,7 @@ public class AUGManager {
     //
 
     public void prepare() {
-        for(AUGComponent AUGComponent : AUGComponents) {
+        for(AUGComponent AUGComponent: AUGComponents) {
             AUGComponent.create();
             AUGComponent.start();
         }

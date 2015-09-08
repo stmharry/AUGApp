@@ -20,6 +20,7 @@ public class PlayerFragment extends AUGFragment {
         PlayerFragment fragment = new PlayerFragment();
         fragment.setLayoutResource(LAYOUT_RESOURCE);
         fragment.setTitleResource(NAME_RESOURCE);
+
         return fragment;
     }
 
@@ -39,8 +40,9 @@ public class PlayerFragment extends AUGFragment {
                 AudioPlayer.newInstance()};
         TimeUpdater timeUpdater = new TimeUpdater();
 
-        SongManager.Song song = augActivity.getSongManager().getSongToPlay();
-        String songFieldData = (String) song.get(SongManager.FIELD_DATA);
+        SongManager songManager = augActivity.getSongManager();
+        Song song = songManager.getSongByFragment(this);
+        String songFieldData = (String) song.get(Song.FIELD_DATA);
 
         augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
         augManager.setDataSource(songFieldData);
@@ -57,7 +59,7 @@ public class PlayerFragment extends AUGFragment {
     public void onPause() {
         super.onPause();
         augManager.pause();
-        augActivity.getSongManager().saveTitleKeyToPlay();
+        //augActivity.getSongManager().saveTitleKeyToPlay();
     }
 
     @Override

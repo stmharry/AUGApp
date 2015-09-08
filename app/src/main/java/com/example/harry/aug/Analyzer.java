@@ -209,6 +209,10 @@ public abstract class Analyzer extends AUGComponent {
                 x[i] *= (2f / 3);
             }
         }
+
+        public float maxSlope() {
+            return 0.75f;
+        }
     }
 
     protected class FFT {

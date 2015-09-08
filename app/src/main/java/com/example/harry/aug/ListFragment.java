@@ -37,7 +37,8 @@ public class ListFragment extends AUGFragment {
     private class SongListOnItemClickListener implements ListView.OnItemClickListener {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            augActivity.getSongManager().setTitleKeyToPlay((String) view.getTag());
+            SongManager songManager = augActivity.getSongManager();
+            songManager.setSongByFragment(augActivity.AUG_FRAGMENT_PLAYER, songManager.getSongByTitleKey((String) view.getTag()));
             augActivity.replaceLayout(augActivity.AUG_LAYOUT_MAJOR, augActivity.AUG_FRAGMENT_PLAYER);
         }
     }
