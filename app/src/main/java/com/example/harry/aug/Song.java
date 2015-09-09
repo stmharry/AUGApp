@@ -3,65 +3,58 @@ package com.example.harry.aug;
 import android.database.Cursor;
 import android.provider.MediaStore;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * Created by harry on 9/8/15.
+ * Created by harry on 15/9/9.
  */
 public class Song {
-    public static String
-            FIELD_DATA,
-            FIELD_TITLE_KEY,
-            FIELD_TITLE,
-            FIELD_ARTIST,
-            FIELD_DURATION,
-            FIELD_BPM,
-            FIELD_BEAT_TIME;
-
-    private static final String[] FIELD_MEDIASTORE = new String[] {
+    public static final String
             FIELD_DATA      = MediaStore.Audio.Media.DATA,
             FIELD_TITLE_KEY = MediaStore.Audio.Media.TITLE_KEY,
             FIELD_TITLE     = MediaStore.Audio.Media.TITLE,
             FIELD_ARTIST    = MediaStore.Audio.Media.ARTIST,
-            FIELD_DURATION  = MediaStore.Audio.Media.DURATION
-    };
+            FIELD_DURATION  = MediaStore.Audio.Media.DURATION;
 
-    private static final String[] FIELD_AUG = new String[] {
-            FIELD_BPM       = "BPM",
-            FIELD_BEAT_TIME = "BEAT_TIME"
-    };
+    public static final String
+            FIELD_ID        = "_id",
+            FIELD_BPM       = "bpm",
+            FIELD_BEAT_NUM  = "beat_num",
+            FIELD_BEAT_TIME = "beat_time";
 
-    private Map<String, Object> map;
+    private int     id;
+    private String  data;
+    private String  titleKey;
+    private String  title;
+    private String  artist;
+    private long    duration;
+    private float   bpm;
+    private int     beatCount;
+    private float[] beatTime;
 
     public Song(Cursor cursor) {
-        map = new HashMap<>(FIELD_MEDIASTORE.length + FIELD_AUG.length);
-
-        for(String key: FIELD_MEDIASTORE) {
-            int column = cursor.getColumnIndex(key);
-
-            switch(cursor.getType(column)) {
-                case Cursor.FIELD_TYPE_INTEGER:
-                    map.put(key, cursor.getLong(column));
-                    break;
-                case Cursor.FIELD_TYPE_FLOAT:
-                    map.put(key, cursor.getDouble(column));
-                    break;
-                case Cursor.FIELD_TYPE_STRING:
-                    map.put(key, cursor.getString(column));
-                    break;
-                case Cursor.FIELD_TYPE_NULL:
-                case Cursor.FIELD_TYPE_BLOB:
-                    break;
-            }
-        }
+        this.data     = cursor.getString(cursor.getColumnIndex(FIELD_DATA));
+        this.titleKey = cursor.getString(cursor.getColumnIndex(FIELD_TITLE_KEY));
+        this.title    = cursor.getString(cursor.getColumnIndex(FIELD_TITLE));
+        this.artist   = cursor.getString(cursor.getColumnIndex(FIELD_ARTIST));
+        this.duration = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
     }
 
-    public Object get(String key) {
-        return map.get(key);
+    public String getData() {
+        return data;
     }
 
-    public void put(String key, Object value) {
-        map.put(key, value);
+    public String getTitleKey() {
+        return titleKey;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getArtist() {
+        return artist;
+    }
+
+    public long getDuration() {
+        return duration;
     }
 }

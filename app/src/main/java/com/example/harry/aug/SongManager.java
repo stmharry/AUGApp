@@ -1,7 +1,9 @@
 package com.example.harry.aug;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.provider.MediaStore;
 
 import java.util.ArrayList;
@@ -14,10 +16,8 @@ import java.util.Map;
  * Created by harry on 8/27/15.
  */
 public class SongManager {
-    private static final String FIELD_TITLE_KEY = "FIELD_TITLE_KEY";
-    private static final String FIELD_BPM = "FIELD_BPM";
-
     private AUGActivity augActivity;
+    private SQLiteDatabase database;
     private ArrayList<Song> songList;
     private Map <AUGFragment, Song> songMap;
 
@@ -25,6 +25,7 @@ public class SongManager {
 
     public SongManager(AUGActivity augActivity) {
         this.augActivity = augActivity;
+        this.database = AUGDBHelper.getDatabase(augActivity);
         this.songList = makeSongList();
         this.songMap = new HashMap<>(augActivity.AUG_FRAGMENT_MAJOR.length + augActivity.AUG_FRAGMENT_MINOR.length);
     }
@@ -35,7 +36,7 @@ public class SongManager {
 
     public Song getSongByTitleKey(String titleKey) {
         for(Song song: songList) {
-            if(titleKey.equals(song.get(Song.FIELD_TITLE_KEY))) {
+            if(titleKey.equals(song.getTitleKey())) {
                 return song;
             }
         }
@@ -44,7 +45,7 @@ public class SongManager {
 
     public Song getSongByTitle(String title) {
         for(Song song: songList) {
-            if(title.equals(song.get(Song.FIELD_TITLE))) {
+            if(title.equals(song.getTitle())) {
                 return song;
             }
         }
@@ -55,11 +56,11 @@ public class SongManager {
         Song song = songMap.get(augFragment);
         if(song == null) {
             if(augFragment == augActivity.AUG_FRAGMENT_PLAYER) {
-                String titleKey = augActivity.getPreferences(Context.MODE_PRIVATE).getString(FIELD_TITLE_KEY, null);
+                String titleKey = augActivity.getPreferences(Context.MODE_PRIVATE).getString(Song.FIELD_TITLE_KEY, null);
                 song = (titleKey == null)? songList.get(0) : getSongByTitleKey(titleKey);
             } else if(augFragment == augActivity.AUG_FRAGMENT_ANALYZER) {
                 for(Song s: songList) {
-                    if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(FIELD_BPM + s.get(Song.FIELD_TITLE_KEY), 0) == 0) {
+                    if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(Song.FIELD_BPM + s.getTitleKey(), 0) == 0) {
                         song = s;
                         break;
                     }
@@ -98,12 +99,21 @@ public class SongManager {
 
     //
 
+    public void dbClose() {
+        database.close();
+    }
+
+    public void dbInsert(Song song) {
+        ContentValues contentValues = new ContentValues();
+    }
+
+
+    //
+
     private class SongComparator implements Comparator<Song> {
         @Override
         public int compare(Song lhs, Song rhs) {
-            String titleL = (String) (lhs.get(Song.FIELD_TITLE));
-            String titleR = (String) (rhs.get(Song.FIELD_TITLE));
-            return titleL.compareTo(titleR);
+            return lhs.getTitle().compareTo(rhs.getTitle());
         }
     }
 }

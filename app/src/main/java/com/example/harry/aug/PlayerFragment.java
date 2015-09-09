@@ -42,10 +42,10 @@ public class PlayerFragment extends AUGFragment {
 
         SongManager songManager = augActivity.getSongManager();
         Song song = songManager.getSongByFragment(this);
-        String songFieldData = (String) song.get(Song.FIELD_DATA);
+        String songData = song.getData();
 
         augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
-        augManager.setDataSource(songFieldData);
+        augManager.setDataSource(songData);
         augManager.prepare();
     }
 

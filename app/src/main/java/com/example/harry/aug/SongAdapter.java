@@ -1,7 +1,6 @@
 package com.example.harry.aug;
 
 import android.content.Context;
-import android.provider.MediaStore.Audio.Media;
 import android.text.format.Time;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -39,14 +38,14 @@ public class SongAdapter extends BaseAdapter {
         TextView durationView = (TextView) songLayout.findViewById(R.id.song_duration);
 
         Song song = songManager.getSongList().get(position);
-        titleView.setText((String) (song.get(Song.FIELD_TITLE)));
-        artistView.setText((String) (song.get(Song.FIELD_ARTIST)));
+        titleView.setText(song.getTitle());
+        artistView.setText(song.getArtist());
 
         Time time = new Time();
-        time.set((long)(song.get(Media.DURATION)));
+        time.set(song.getDuration());
         durationView.setText(time.format("%M:%S"));
 
-        songLayout.setTag(song.get(Media.TITLE_KEY));
+        songLayout.setTag(song.getTitleKey());
         return songLayout;
     }
 }
