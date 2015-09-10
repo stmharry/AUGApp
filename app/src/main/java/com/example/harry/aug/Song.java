@@ -23,15 +23,15 @@ public class Song {
             FIELD_BEAT_COUNT = "beat_count",
             FIELD_BEAT_TIME  = "beat_time";
 
-    private long    id;
-    private String  data;
-    private String  titleKey;
-    private String  title;
-    private String  artist;
-    private long    duration;
-    private float   bpm;
-    private int     beatCount;
-    private float[] beatTime;
+    private long   id;
+    private String data;
+    private String titleKey;
+    private String title;
+    private String artist;
+    private long   duration;
+    private float  bpm;
+    private int    beatCount;
+    private long[] beatTime;
 
     public Song(Cursor cursor, boolean isDB) {
         this.data      = cursor.getString(cursor.getColumnIndex(FIELD_DATA));
@@ -48,9 +48,9 @@ public class Song {
             if(byteArray == null) {
                 this.beatTime = null;
             } else {
-                int floatBufferSize = byteArray.length / (Float.SIZE / 8);
-                this.beatTime = new float[floatBufferSize];
-                ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(beatTime);
+                int longBufferSize = byteArray.length / (Long.SIZE / 8);
+                this.beatTime = new long[longBufferSize];
+                ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asLongBuffer().get(beatTime);
             }
         }
     }
@@ -87,7 +87,7 @@ public class Song {
         return beatCount;
     }
 
-    public float[] getBeatTime() {
+    public long[] getBeatTime() {
         return beatTime;
     }
 

@@ -132,14 +132,14 @@ public class SongManager {
         contentValues.put(Song.FIELD_BPM, song.getBPM());
         contentValues.put(Song.FIELD_BEAT_COUNT, song.getBeatCount());
 
-        float[] floatBufferArray = song.getBeatTime();
+        long[] longBufferArray = song.getBeatTime();
         byte[] byteBufferArray = null;
-        if(floatBufferArray != null) {
-            int byteBufferSize = floatBufferArray.length * Float.SIZE / 8;
+        if(longBufferArray != null) {
+            int byteBufferSize = longBufferArray.length * Float.SIZE / 8;
             byteBufferArray = new byte[byteBufferSize];
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(byteBufferArray);
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().put(floatBufferArray);
+            byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asLongBuffer().put(longBufferArray);
         }
         contentValues.put(Song.FIELD_BEAT_TIME, byteBufferArray);
 
