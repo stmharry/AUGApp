@@ -59,7 +59,7 @@ public class PlayerFragment extends AUGFragment {
     public void onPause() {
         super.onPause();
         augManager.pause();
-        //augActivity.getSongManager().saveTitleKeyToPlay();
+        augActivity.getSongManager().saveSongOfPlayerFragment();
     }
 
     @Override

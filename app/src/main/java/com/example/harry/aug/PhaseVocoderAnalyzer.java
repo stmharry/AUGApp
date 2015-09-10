@@ -134,9 +134,8 @@ public class PhaseVocoderAnalyzer extends Analyzer {
         int byteBufferSize = fftHopSize * numChannel * BYTE_PER_SHORT;
         byte[] byteBufferArray = new byte[byteBufferSize];
 
-        ByteBuffer byteBuffer = ByteBuffer.allocate(byteBufferSize);
+        ByteBuffer byteBuffer = ByteBuffer.wrap(byteBufferArray);
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shortBufferArray);
-        byteBuffer.get(byteBufferArray);
 
         return byteBufferArray;
     }

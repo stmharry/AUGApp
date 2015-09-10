@@ -3,6 +3,9 @@ package com.example.harry.aug;
 import android.database.Cursor;
 import android.provider.MediaStore;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 /**
  * Created by harry on 15/9/9.
  */
@@ -15,12 +18,12 @@ public class Song {
             FIELD_DURATION  = MediaStore.Audio.Media.DURATION;
 
     public static final String
-            FIELD_ID        = "_id",
-            FIELD_BPM       = "bpm",
-            FIELD_BEAT_NUM  = "beat_num",
-            FIELD_BEAT_TIME = "beat_time";
+            FIELD_ID         = "_id",
+            FIELD_BPM        = "bpm",
+            FIELD_BEAT_COUNT = "beat_count",
+            FIELD_BEAT_TIME  = "beat_time";
 
-    private int     id;
+    private long    id;
     private String  data;
     private String  titleKey;
     private String  title;
@@ -30,12 +33,30 @@ public class Song {
     private int     beatCount;
     private float[] beatTime;
 
-    public Song(Cursor cursor) {
-        this.data     = cursor.getString(cursor.getColumnIndex(FIELD_DATA));
-        this.titleKey = cursor.getString(cursor.getColumnIndex(FIELD_TITLE_KEY));
-        this.title    = cursor.getString(cursor.getColumnIndex(FIELD_TITLE));
-        this.artist   = cursor.getString(cursor.getColumnIndex(FIELD_ARTIST));
-        this.duration = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
+    public Song(Cursor cursor, boolean isDB) {
+        this.data      = cursor.getString(cursor.getColumnIndex(FIELD_DATA));
+        this.titleKey  = cursor.getString(cursor.getColumnIndex(FIELD_TITLE_KEY));
+        this.title     = cursor.getString(cursor.getColumnIndex(FIELD_TITLE));
+        this.artist    = cursor.getString(cursor.getColumnIndex(FIELD_ARTIST));
+        this.duration  = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
+
+        if(isDB) {
+            this.bpm = cursor.getFloat(cursor.getColumnIndex(FIELD_BPM));
+            this.beatCount = cursor.getInt(cursor.getColumnIndex(FIELD_BEAT_COUNT));
+
+            byte[] byteArray = cursor.getBlob(cursor.getColumnIndex(FIELD_BEAT_TIME));
+            if(byteArray == null) {
+                this.beatTime = null;
+            } else {
+                int floatBufferSize = byteArray.length / (Float.SIZE / 8);
+                this.beatTime = new float[floatBufferSize];
+                ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(beatTime);
+            }
+        }
+    }
+
+    public long getId() {
+        return id;
     }
 
     public String getData() {
@@ -56,5 +77,21 @@ public class Song {
 
     public long getDuration() {
         return duration;
+    }
+
+    public float getBPM() {
+        return bpm;
+    }
+
+    public int getBeatCount() {
+        return beatCount;
+    }
+
+    public float[] getBeatTime() {
+        return beatTime;
+    }
+
+    public void setId(long id) {
+        this.id = id;
     }
 }

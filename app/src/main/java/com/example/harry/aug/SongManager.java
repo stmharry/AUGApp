@@ -3,9 +3,12 @@ package com.example.harry.aug;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.provider.MediaStore;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -16,17 +19,32 @@ import java.util.Map;
  * Created by harry on 8/27/15.
  */
 public class SongManager {
+    public static final String TABLE_NAME = "Song";
+    public static final String CREATE_TABLE =
+            "CREATE TABLE " + TABLE_NAME + " (" +
+                    Song.FIELD_ID         + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    Song.FIELD_DATA       + " TEXT NOT NULL, " +
+                    Song.FIELD_TITLE_KEY  + " TEXT NOT NULL, " +
+                    Song.FIELD_TITLE      + " TEXT NOT NULL, " +
+                    Song.FIELD_ARTIST     + " TEXT NOT NULL, " +
+                    Song.FIELD_DURATION   + " INTEGER NOT NULL, " +
+                    Song.FIELD_BPM        + " REAL, " +
+                    Song.FIELD_BEAT_COUNT + " INTEGER, " +
+                    Song.FIELD_BEAT_TIME  + " BLOB)";
+    public static final String UPGRADE_TABLE = "DROP TABLE IF EXISTS " + TABLE_NAME;
+
     private AUGActivity augActivity;
     private SQLiteDatabase database;
     private ArrayList<Song> songList;
-    private Map <AUGFragment, Song> songMap;
+    private Map<AUGFragment, Song> songMap;
 
     //
 
     public SongManager(AUGActivity augActivity) {
         this.augActivity = augActivity;
         this.database = AUGDBHelper.getDatabase(augActivity);
-        this.songList = makeSongList();
+        makeSongList();
+        this.songList = getSongListFromDB(new SongComparator(Song.FIELD_TITLE));
         this.songMap = new HashMap<>(augActivity.AUG_FRAGMENT_MAJOR.length + augActivity.AUG_FRAGMENT_MINOR.length);
     }
 
@@ -75,45 +93,134 @@ public class SongManager {
         songMap.put(augFragment, song);
     }
 
-    /*
-    public void saveTitleKeyToPlay() {
-        augActivity.getPreferences(Context.MODE_PRIVATE).edit().putString(FIELD_TITLE_KEY, titleKeyToPlay).apply();
+    public void saveSongOfPlayerFragment() {
+        augActivity.getPreferences(Context.MODE_PRIVATE).edit().putString(Song.FIELD_TITLE_KEY, songMap.get(augActivity.AUG_FRAGMENT_PLAYER).getTitleKey()).apply();
     }
-    */
 
-    private ArrayList<Song> makeSongList() {
-        ArrayList<Song> songList = new ArrayList<>();
-
+    private void makeSongList() {
         Cursor cursor = augActivity.getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null, null, null);
-        if(cursor.moveToFirst()) {
-            do {
-                if(cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE)).startsWith("2015")) continue; // TODO: remove constraint
-                songList.add(new Song(cursor));
-            } while(cursor.moveToNext());
+        while(cursor.moveToNext()) {
+            if(cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE)).startsWith("2015")) continue; // TODO: remove constraint
+
+            String title = cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE));
+            String titleKey = cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE_KEY));
+            if(dbQueryByTitleKey(titleKey) == null) {
+                dbInsert(new Song(cursor, false));
+            }
         }
+
         cursor.close();
-        Collections.sort(songList, new SongComparator());
+    }
+
+    private ArrayList<Song> getSongListFromDB(Comparator<Song> comparator) {
+        ArrayList<Song> songList = dbQueryAll();
+        Collections.sort(songList, comparator);
 
         return songList;
     }
 
     //
 
+    private ContentValues songToContentValues(Song song) {
+        ContentValues contentValues = new ContentValues();
+
+        contentValues.put(Song.FIELD_DATA, song.getData());
+        contentValues.put(Song.FIELD_TITLE_KEY, song.getTitleKey());
+        contentValues.put(Song.FIELD_TITLE, song.getTitle());
+        contentValues.put(Song.FIELD_ARTIST, song.getArtist());
+        contentValues.put(Song.FIELD_DURATION, song.getDuration());
+        contentValues.put(Song.FIELD_BPM, song.getBPM());
+        contentValues.put(Song.FIELD_BEAT_COUNT, song.getBeatCount());
+
+        float[] floatBufferArray = song.getBeatTime();
+        byte[] byteBufferArray = null;
+        if(floatBufferArray != null) {
+            int byteBufferSize = floatBufferArray.length * Float.SIZE / 8;
+            byteBufferArray = new byte[byteBufferSize];
+
+            ByteBuffer byteBuffer = ByteBuffer.wrap(byteBufferArray);
+            byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().put(floatBufferArray);
+        }
+        contentValues.put(Song.FIELD_BEAT_TIME, byteBufferArray);
+
+        return contentValues;
+    }
+
     public void dbClose() {
         database.close();
     }
 
-    public void dbInsert(Song song) {
-        ContentValues contentValues = new ContentValues();
+    public Song dbQueryByTitleKey(String titleKey) {
+        Song song = null;
+        String where = Song.FIELD_TITLE_KEY + "=\"" + titleKey + "\"";
+
+        Cursor cursor = database.query(TABLE_NAME, null, where, null, null, null, null, null);
+        if(cursor.moveToFirst()) {
+            song = new Song(cursor, true);
+        }
+
+        cursor.close();
+        return song;
     }
 
+    public ArrayList<Song> dbQueryAll() {
+        ArrayList<Song> dbSongList = new ArrayList<>();
+
+        Cursor cursor = database.query(TABLE_NAME, null, null, null, null, null, null, null);
+        while(cursor.moveToNext()) {
+            dbSongList.add(new Song(cursor, true));
+        }
+
+        cursor.close();
+        return dbSongList;
+    }
+
+    public void dbInsert(Song song) {
+        ContentValues contentValues = songToContentValues(song);
+        try {
+            long id = database.insertOrThrow(TABLE_NAME, null, contentValues);
+            song.setId(id);
+        } catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean dbUpdate(Song song) {
+        ContentValues contentValues = songToContentValues(song);
+        String where = Song.FIELD_ID + "=" + song.getId();
+        return database.update(TABLE_NAME, contentValues, where, null) > 0;
+    }
+
+    public boolean dbDelete(long id) {
+        String where = Song.FIELD_ID + "=" + id;
+        return database.delete(TABLE_NAME, where, null) > 0;
+    }
 
     //
 
     private class SongComparator implements Comparator<Song> {
+        private String sortBy;
+
+        public SongComparator(String sortBy) {
+            this.sortBy = sortBy;
+        }
+
         @Override
         public int compare(Song lhs, Song rhs) {
-            return lhs.getTitle().compareTo(rhs.getTitle());
+            switch(sortBy) {
+                case Song.FIELD_DATA:
+                    return lhs.getData().compareTo(rhs.getData());
+                case Song.FIELD_TITLE:
+                    return lhs.getTitle().compareTo(rhs.getTitle());
+                case Song.FIELD_ARTIST:
+                    return lhs.getArtist().compareTo(rhs.getArtist());
+                case Song.FIELD_DURATION:
+                    return (lhs.getDuration() < rhs.getDuration()) ? -1 : +1;
+                case Song.FIELD_BPM:
+                    return (lhs.getBPM() < rhs.getBPM()) ? -1 : +1;
+                default:
+                    return 0;
+            }
         }
     }
 }

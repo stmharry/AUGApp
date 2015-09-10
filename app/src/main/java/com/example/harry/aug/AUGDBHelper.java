@@ -8,8 +8,8 @@ import android.database.sqlite.SQLiteOpenHelper;
  * Created by harry on 9/8/15.
  */
 public class AUGDBHelper extends SQLiteOpenHelper {
-    public static final String DATABASE_NAME = "AUG.db";
-    public static final int VERSION = 1;
+    private static final String DATABASE_NAME = "AUG3.db";
+    private static final int VERSION = 1;
 
     private static SQLiteDatabase database;
 
@@ -26,13 +26,13 @@ public class AUGDBHelper extends SQLiteOpenHelper {
     }
 
     @Override
-    public void onCreate(SQLiteDatabase db) {
-
+    public void onCreate(SQLiteDatabase database) {
+        database.execSQL(SongManager.CREATE_TABLE);
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
-        onCreate(db);
+    public void onUpgrade(SQLiteDatabase database, int oldVersion, int newVersion) {
+        database.execSQL(SongManager.UPGRADE_TABLE);
+        onCreate(database);
     }
 }

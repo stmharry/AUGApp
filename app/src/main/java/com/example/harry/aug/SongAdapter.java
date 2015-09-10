@@ -25,10 +25,14 @@ public class SongAdapter extends BaseAdapter {
     public int getCount() { return songManager.getSongList().size(); }
 
     @Override
-    public Object getItem(int arg0) { return null; }
+    public Object getItem(int arg0) {
+        return null;
+    }
 
     @Override
-    public long getItemId(int arg0) { return 0; }
+    public long getItemId(int arg0) {
+        return 0;
+    }
 
     @Override
     public View getView(int position, View view, ViewGroup viewGroup) {
