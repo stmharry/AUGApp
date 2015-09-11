@@ -41,8 +41,8 @@ public class LabROSAAnalyzer extends Analyzer {
 
     //
 
-    private float tempoFinal;
-    private float tempoScore;
+    private float bpm;
+    private float beatScore;
     private long[] beatTime;
 
     //
@@ -72,6 +72,18 @@ public class LabROSAAnalyzer extends Analyzer {
         return selection;
     }
 
+    public float getBPM() {
+        return bpm;
+    }
+
+    public float getBeatScore() {
+        return beatScore;
+    }
+
+    public long[] getBeatTime() {
+        return beatTime;
+    }
+
     //
 
     private void analyzeTempo() {
@@ -89,25 +101,25 @@ public class LabROSAAnalyzer extends Analyzer {
         envFFT = new FFT(envFFTFrameSize, envFFTSizeLog);
 
         util.normalize(onsetEnvelope);
-        float[] tempo = new float[selectionSize];
+        float[] bpmSample = new float[selectionSize];
         for(selection = 0; selection < selectionSize; selection++) {
             float[] onsetSegment = util.select(onsetEnvelope, envFrameSize);
             float[] onsetCorr = Arrays.copyOf(util.xcorr(onsetSegment), envFrameSize);
             util.window(onsetCorr);
 
-            tempo[selection] = 60 * envSampleRate / util.maxIndex(onsetCorr);
+            bpmSample[selection] = 60 * envSampleRate / util.maxIndex(onsetCorr);
         }
 
-        tempoFinal = util.mode(tempo);
-        tempoScore = util.score(tempo, tempoFinal);
+        bpm = util.mode(bpmSample);
+        beatScore = util.score(bpmSample, bpm);
 
-        Log.d(TAG, String.format("tempoFinal = %.2f, tempoScore = %.2f", tempoFinal, tempoScore));
+        Log.d(TAG, String.format("bpm = %.2f, beatScore = %.2f", bpm, beatScore));
     }
 
     private void analyzeBeat() {
         state = State.STATE_BEAT;
 
-        int period = (int)(60 * envSampleRate / tempoFinal);
+        int period = (int)(60 * envSampleRate / bpm);
         int periodLow = (int)(period / BEAT_PARENT_RANGE);
         int periodHigh = (int)(period * BEAT_PARENT_RANGE);
         int periodRange = periodHigh - periodLow;
@@ -150,10 +162,6 @@ public class LabROSAAnalyzer extends Analyzer {
         for(int i = 0; i < beatIndex; i++) {
             beatTime[i] = (long)((beat[i] / envSampleRate) * S_TO_US + fftFrameSizeUs * window.maxSlope()); // TODO: some room for modification
         }
-    }
-
-    private void saveBeat() {
-
     }
 
     //
@@ -226,8 +234,6 @@ public class LabROSAAnalyzer extends Analyzer {
         if(inputEOS && inputQueue.isEmpty() && isUnderFlow()) {
             analyzeTempo();
             analyzeBeat();
-            saveBeat();
-
             setOutputEOS();
         }
     }

@@ -15,15 +15,18 @@ public class AUGManager {
     public static final int UPDATE_FAIL = -1;
 
     private AUGActivity augActivity;
+    private AUGFragment augFragment;
     private State state;
+    private Song song;
     private MediaExtractor mediaExtractor;
     private AUGComponent[] AUGComponents;
     private Handler handler;
     private AUGTimeUpdater augTimeUpdater;
     private Destroyer destroyer;
 
-    public AUGManager(AUGActivity augActivity, AUGComponent[] AUGComponents, AUGTimeUpdater augTimeUpdater) {
+    public AUGManager(AUGActivity augActivity, AUGFragment augFragment, AUGComponent[] AUGComponents, AUGTimeUpdater augTimeUpdater) {
         this.augActivity = augActivity;
+        this.augFragment = augFragment;
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
         this.AUGComponents = AUGComponents;
@@ -58,7 +61,10 @@ public class AUGManager {
         return handler;
     }
 
-    public void setDataSource(String dataSource) {
+    public void setSong(Song song) {
+        this.song = song;
+        String dataSource = song.getData();
+
         // Media Extractor
         try {
             mediaExtractor.setDataSource(dataSource);
@@ -118,7 +124,6 @@ public class AUGManager {
     }
 
     public void pause() {
-        Log.d(TAG, "Pause");
         if(state == State.STATE_PLAYING) {
             state = State.STATE_PAUSED;
 
@@ -129,7 +134,6 @@ public class AUGManager {
     }
 
     public void stop() {
-        Log.d(TAG, "Stop");
         if(state != State.STATE_STOPPED) {
             state = State.STATE_STOPPED;
 

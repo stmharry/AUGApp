@@ -20,6 +20,7 @@ public class Song {
     public static final String
             FIELD_ID         = "_id",
             FIELD_BPM        = "bpm",
+            FIELD_BEAT_SCORE = "beat_score",
             FIELD_BEAT_COUNT = "beat_count",
             FIELD_BEAT_TIME  = "beat_time";
 
@@ -30,6 +31,7 @@ public class Song {
     private String artist;
     private long   duration;
     private float  bpm;
+    private float  beatScore;
     private int    beatCount;
     private long[] beatTime;
 
@@ -41,15 +43,16 @@ public class Song {
         this.duration  = cursor.getLong(cursor.getColumnIndex(FIELD_DURATION));
 
         if(isDB) {
+            this.id = cursor.getInt(cursor.getColumnIndex(FIELD_ID));
             this.bpm = cursor.getFloat(cursor.getColumnIndex(FIELD_BPM));
+            this.beatScore = cursor.getFloat(cursor.getColumnIndex(FIELD_BEAT_SCORE));
             this.beatCount = cursor.getInt(cursor.getColumnIndex(FIELD_BEAT_COUNT));
 
             byte[] byteArray = cursor.getBlob(cursor.getColumnIndex(FIELD_BEAT_TIME));
             if(byteArray == null) {
                 this.beatTime = null;
             } else {
-                int longBufferSize = byteArray.length / (Long.SIZE / 8);
-                this.beatTime = new long[longBufferSize];
+                this.beatTime = new long[beatCount];
                 ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asLongBuffer().get(beatTime);
             }
         }
@@ -83,6 +86,10 @@ public class Song {
         return bpm;
     }
 
+    public float getBeatScore() {
+        return beatScore;
+    }
+
     public int getBeatCount() {
         return beatCount;
     }
@@ -93,5 +100,21 @@ public class Song {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    public void setBPM(float bpm) {
+        this.bpm = bpm;
+    }
+
+    public void setBeatScore(float beatScore) {
+        this.beatScore = beatScore;
+    }
+
+    public void setBeatCount(int beatCount) {
+        this.beatCount = beatCount;
+    }
+
+    public void setBeatTime(long[] beatTime) {
+        this.beatTime = beatTime;
     }
 }

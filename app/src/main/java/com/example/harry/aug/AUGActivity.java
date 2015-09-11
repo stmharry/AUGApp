@@ -157,6 +157,12 @@ public class AUGActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onDestroy() {
+        super.onDestroy();
+        songManager.dbClose();
+    }
+
+    @Override
     public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
         actionBarDrawerToggle.onConfigurationChanged(configuration);

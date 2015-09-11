@@ -29,6 +29,7 @@ public class SongManager {
                     Song.FIELD_ARTIST     + " TEXT NOT NULL, " +
                     Song.FIELD_DURATION   + " INTEGER NOT NULL, " +
                     Song.FIELD_BPM        + " REAL, " +
+                    Song.FIELD_BEAT_SCORE + " REAL, " +
                     Song.FIELD_BEAT_COUNT + " INTEGER, " +
                     Song.FIELD_BEAT_TIME  + " BLOB)";
     public static final String UPGRADE_TABLE = "DROP TABLE IF EXISTS " + TABLE_NAME;
@@ -130,13 +131,13 @@ public class SongManager {
         contentValues.put(Song.FIELD_ARTIST, song.getArtist());
         contentValues.put(Song.FIELD_DURATION, song.getDuration());
         contentValues.put(Song.FIELD_BPM, song.getBPM());
+        contentValues.put(Song.FIELD_BEAT_SCORE, song.getBeatScore());
         contentValues.put(Song.FIELD_BEAT_COUNT, song.getBeatCount());
 
         long[] longBufferArray = song.getBeatTime();
         byte[] byteBufferArray = null;
         if(longBufferArray != null) {
-            int byteBufferSize = longBufferArray.length * Float.SIZE / 8;
-            byteBufferArray = new byte[byteBufferSize];
+            byteBufferArray = new byte[song.getBeatCount() * (Long.SIZE / 8)];
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(byteBufferArray);
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asLongBuffer().put(longBufferArray);
@@ -152,9 +153,9 @@ public class SongManager {
 
     public Song dbQueryByTitleKey(String titleKey) {
         Song song = null;
-        String where = Song.FIELD_TITLE_KEY + "=\"" + titleKey + "\"";
+        String query = "SELECT * FROM " + TABLE_NAME + " WHERE " + Song.FIELD_TITLE_KEY + "= ?";
+        Cursor cursor = database.rawQuery(query, new String[] {titleKey});
 
-        Cursor cursor = database.query(TABLE_NAME, null, where, null, null, null, null, null);
         if(cursor.moveToFirst()) {
             song = new Song(cursor, true);
         }

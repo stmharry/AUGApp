@@ -39,11 +39,18 @@ public class SongAdapter extends BaseAdapter {
         LinearLayout songLayout = (LinearLayout) songInflater.inflate(R.layout.song, viewGroup, false);
         TextView titleView = (TextView) songLayout.findViewById(R.id.song_title);
         TextView artistView = (TextView) songLayout.findViewById(R.id.song_artist);
+        TextView bpmView = (TextView) songLayout.findViewById(R.id.song_bpm);
         TextView durationView = (TextView) songLayout.findViewById(R.id.song_duration);
 
         Song song = songManager.getSongList().get(position);
+        String text;
+
         titleView.setText(song.getTitle());
         artistView.setText(song.getArtist());
+
+        float bpm = song.getBPM();
+        text = (bpm == 0)? "N/A" : String.format("%.0f BPM", bpm);
+        bpmView.setText(text);
 
         Time time = new Time();
         time.set(song.getDuration());

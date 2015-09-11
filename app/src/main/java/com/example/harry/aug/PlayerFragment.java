@@ -29,6 +29,29 @@ public class PlayerFragment extends AUGFragment {
     //
 
     @Override
+    public void startAUGManager() {
+        SongManager songManager = augActivity.getSongManager();
+        Song song = songManager.getSongByFragment(this);
+
+        augManager.setSong(song);
+        augManager.prepare();
+        augManager.start();
+    }
+
+    @Override
+    public void pauseAUGManager() {
+        augManager.pause();
+        augActivity.getSongManager().saveSongOfPlayerFragment();
+    }
+
+    @Override
+    public void stopAUGManager() {
+        augManager.stop();
+    }
+
+    //
+
+    @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
@@ -40,32 +63,7 @@ public class PlayerFragment extends AUGFragment {
                 AudioPlayer.newInstance()};
         TimeUpdater timeUpdater = new TimeUpdater();
 
-        SongManager songManager = augActivity.getSongManager();
-        Song song = songManager.getSongByFragment(this);
-        String songData = song.getData();
-
-        augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
-        augManager.setDataSource(songData);
-        augManager.prepare();
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        augManager.start();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        augManager.pause();
-        augActivity.getSongManager().saveSongOfPlayerFragment();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        augManager.stop();
+        augManager = new AUGManager(augActivity, this, AUGComponents, timeUpdater);
     }
 
     //

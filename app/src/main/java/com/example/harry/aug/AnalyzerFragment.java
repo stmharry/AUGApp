@@ -10,12 +10,10 @@ public class AnalyzerFragment extends AUGFragment {
     private static final int LAYOUT_RESOURCE = R.layout.fragment_analyzer;
     private static final int NAME_RESOURCE = R.string.fragment_analyzer;
 
-    public AUGComponent
-            ANALYZER_DECODER,
-            ANALYZER_ANALYZER;
+    public LabROSAAnalyzer ANALYZER_ANALYZER;
 
     private AUGManager augManager;
-    private boolean noSong;
+    private Song song;
 
     //
 
@@ -31,56 +29,56 @@ public class AnalyzerFragment extends AUGFragment {
     //
 
     @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
+    public void onAUGManagerStop() {
+        song.setBPM(ANALYZER_ANALYZER.getBPM());
+        song.setBeatScore(ANALYZER_ANALYZER.getBeatScore());
+        long[] beatTime = ANALYZER_ANALYZER.getBeatTime();
+        song.setBeatCount(beatTime.length);
+        song.setBeatTime(beatTime);
 
-        AUGComponent[] AUGComponents = new AUGComponent[]{
-                ANALYZER_DECODER  = Decoder.newInstance(),
-                ANALYZER_ANALYZER = LabROSAAnalyzer.newInstance()};
-        TimeUpdater timeUpdater = new TimeUpdater();
-
-        SongManager songManager = augActivity.getSongManager();
-        songManager.setSongByFragment(this, songManager.getSongByTitle("ZHU - Faded")); // TODO: remove constraint
-        Song song = songManager.getSongByFragment(this);
-
-        if(song == null) {
-            noSong = true;
-            return;
-        }
-
-        String songTitle = song.getTitle();
-        String songData = song.getData();
-
-        TextView analyzerInfoTextView = (TextView) augActivity.findViewById(R.id.analyzer_info);
-        analyzerInfoTextView.setText("Analyzing: " + songTitle); //
-
-        augManager = new AUGManager(augActivity, AUGComponents, timeUpdater);
-        augManager.setDataSource(songData);
-        augManager.prepare();
+        augActivity.getSongManager().dbUpdate(song);
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        if(!noSong) {
+    public void startAUGManager() {
+        SongManager songManager = augActivity.getSongManager();
+        song = songManager.getSongByFragment(this);
+
+        if(song != null) {
+            ((TextView) augActivity.findViewById(R.id.analyzer_info)).setText("Analyzing: " + song.getTitle()); //
+
+            augManager.setSong(song);
+            augManager.prepare();
             augManager.start();
         }
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-        if(!noSong) {
+    public void pauseAUGManager() {
+        if(song != null) {
             augManager.pause();
         }
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-        if(!noSong) {
+    public void stopAUGManager() {
+        if(song != null) {
             augManager.stop();
         }
+    }
+
+    //
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        AUGComponent[] AUGComponents = new AUGComponent[]{
+                Decoder.newInstance(),
+                ANALYZER_ANALYZER = LabROSAAnalyzer.newInstance()};
+        TimeUpdater timeUpdater = new TimeUpdater();
+
+        augManager = new AUGManager(augActivity, this, AUGComponents, timeUpdater);
     }
 
     //
@@ -98,8 +96,7 @@ public class AnalyzerFragment extends AUGFragment {
             }
 
             String str;
-            LabROSAAnalyzer labROSAAnalyzer = (LabROSAAnalyzer) ANALYZER_ANALYZER;
-            LabROSAAnalyzer.State state = labROSAAnalyzer.getState();
+            LabROSAAnalyzer.State state = ANALYZER_ANALYZER.getState();
             switch(state) {
                 case STATE_ONSET:
                     long curTime = augManager.getTime();
@@ -107,8 +104,8 @@ public class AnalyzerFragment extends AUGFragment {
                     str = String.format("STATE_ONSET: %.3f (%d/%d)", (float) curTime / allTime, curTime, allTime);
                     break;
                 case STATE_TEMPO:
-                    int curIteration = labROSAAnalyzer.getSelection();
-                    int allIteration = labROSAAnalyzer.getSelectionSize();
+                    int curIteration = ANALYZER_ANALYZER.getSelection();
+                    int allIteration = ANALYZER_ANALYZER.getSelectionSize();
                     str = String.format("STATE_TEMPO: %.2f (%d/%d)", (float) curIteration / allIteration, curIteration, allIteration);
                     break;
                 case STATE_BEAT:

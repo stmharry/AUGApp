@@ -37,8 +37,38 @@ public class AUGFragment extends Fragment {
 
     //
 
+    public void onAUGManagerStop() {}
+
+    public void startAUGManager() {}
+
+    public void pauseAUGManager() {}
+
+    public void stopAUGManager() {
+
+    }
+
+    //
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(layoutResource, container, false);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        startAUGManager();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        pauseAUGManager();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        stopAUGManager();
     }
 }
