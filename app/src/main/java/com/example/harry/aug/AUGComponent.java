@@ -2,6 +2,7 @@ package com.example.harry.aug;
 
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.os.Message;
 import android.os.Process;
 import android.util.Log;
 
@@ -148,8 +149,12 @@ public abstract class AUGComponent implements Runnable {
     public void stop() {
         Log.d(TAG, "Stop");
         if(last) {
-            augManager.pause();
-            augManager.stop();
+            //augManager.pause();
+            //augManager.stop();
+
+            Message message = Message.obtain();
+            message.what = 0;
+            mHandler.sendMessage(msg);
         }
     }
 

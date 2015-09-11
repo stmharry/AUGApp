@@ -29,17 +29,6 @@ public class AnalyzerFragment extends AUGFragment {
     //
 
     @Override
-    public void onAUGManagerStop() {
-        song.setBPM(ANALYZER_ANALYZER.getBPM());
-        song.setBeatScore(ANALYZER_ANALYZER.getBeatScore());
-        long[] beatTime = ANALYZER_ANALYZER.getBeatTime();
-        song.setBeatCount(beatTime.length);
-        song.setBeatTime(beatTime);
-
-        augActivity.getSongManager().dbUpdate(song);
-    }
-
-    @Override
     public void startAUGManager() {
         SongManager songManager = augActivity.getSongManager();
         song = songManager.getSongByFragment(this);
@@ -67,6 +56,22 @@ public class AnalyzerFragment extends AUGFragment {
         }
     }
 
+    @Override
+    public void onAUGManagerStop() {
+        song.setBPM(ANALYZER_ANALYZER.getBPM());
+        song.setBeatScore(ANALYZER_ANALYZER.getBeatScore());
+        long[] beatTime = ANALYZER_ANALYZER.getBeatTime();
+        song.setBeatCount(beatTime.length);
+        song.setBeatTime(beatTime);
+
+        augActivity.getSongManager().dbUpdate(song);
+
+        SongManager songManager = augActivity.getSongManager();
+        songManager.setSongByFragment(this, null);
+        startAUGManager();
+    }
+
+
     //
 
     @Override
@@ -79,6 +84,9 @@ public class AnalyzerFragment extends AUGFragment {
         TimeUpdater timeUpdater = new TimeUpdater();
 
         augManager = new AUGManager(augActivity, this, AUGComponents, timeUpdater);
+
+        SongManager songManager = augActivity.getSongManager();
+        songManager.setSongByFragment(this, songManager.getSongByTitle("ZHU - Faded")); //
     }
 
     //

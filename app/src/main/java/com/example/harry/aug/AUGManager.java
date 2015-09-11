@@ -11,6 +11,7 @@ import android.util.Log;
  */
 public class AUGManager {
     private static final String TAG = "AUGManager";
+    private static final boolean MULTI_THREAD = true;
 
     public static final int UPDATE_FAIL = -1;
 
@@ -47,6 +48,10 @@ public class AUGManager {
 
     public AUGActivity getAUGActivity() {
         return augActivity;
+    }
+
+    public AUGFragment getAugFragment() {
+        return augFragment;
     }
 
     public State getState() {
@@ -104,8 +109,8 @@ public class AUGManager {
         switch(state) {
             case STATE_STOPPED:
                 state = State.STATE_PLAYING;
-                for(AUGComponent AUGComponent : AUGComponents) {
-                    (new Thread(AUGComponent)).start();
+                for(AUGComponent augComponent: AUGComponents) {
+                    (new Thread(augComponent)).start();
                 }
                 augTimeUpdater.setLoop(true);
                 handler.post(augTimeUpdater);
@@ -113,7 +118,9 @@ public class AUGManager {
             case STATE_PAUSED:
                 state = State.STATE_PLAYING;
                 synchronized(this) {
-                    for(AUGComponent AUGComponent: AUGComponents) AUGComponent.notify();
+                    for(AUGComponent augComponent: AUGComponents) {
+                        augComponent.notify();
+                    }
                 }
                 augTimeUpdater.setLoop(true);
                 handler.post(augTimeUpdater);
@@ -128,16 +135,16 @@ public class AUGManager {
             state = State.STATE_PAUSED;
 
             handler.removeCallbacks(augTimeUpdater);
-            augTimeUpdater.setLoop(false);
-            handler.post(augTimeUpdater);
+            //augTimeUpdater.setLoop(false);
+            //handler.post(augTimeUpdater);
         }
     }
 
     public void stop() {
         if(state != State.STATE_STOPPED) {
             state = State.STATE_STOPPED;
-
-            handler.post(destroyer);
+            destroyer.run();
+            //handler.post(destroyer);
         }
     }
 
@@ -164,7 +171,7 @@ public class AUGManager {
     private class Destroyer implements Runnable {
         @Override
         public void run() {
-            for(AUGComponent AUGComponent : AUGComponents) {
+            for(AUGComponent AUGComponent: AUGComponents) {
                 AUGComponent.destroy();
             }
         }
