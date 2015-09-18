@@ -1,31 +1,23 @@
-apply plugin: 'com.android.model.application'
+apply plugin: 'com.android.application'
 
-model {
-    android {
-        compileSdkVersion = 21
-        buildToolsVersion = "21.1.2"
-
-        defaultConfig.with {
-            applicationId = "com.example.harry.aug"
-            minSdkVersion.apiLevel = 16
-            targetSdkVersion.apiLevel = 21
-            versionCode = 1
-            versionName = "1.0"
-        }
+android {
+    compileSdkVersion 21
+    buildToolsVersion "21.1.2"
+    defaultConfig {
+        applicationId "com.example.harry.aug"
+        minSdkVersion 16
+        targetSdkVersion 21
+        versionCode 1
+        versionName "1.0"
     }
-
-    android.buildTypes {
+    buildTypes {
         release {
-            minifyEnabled = true
-            proguardFiles += file('proguard-rules.pro')
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
-    android.ndk {
-        moduleName = "AUG"
+    productFlavors {
     }
-
-    android.productFlavors {}
 }
 
 dependencies {

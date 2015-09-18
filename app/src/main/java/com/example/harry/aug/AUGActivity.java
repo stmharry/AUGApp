@@ -38,9 +38,9 @@ public class AUGActivity extends AppCompatActivity {
             AUG_FRAGMENT_ANALYZER;
 
     public final AUGFragment[] AUG_FRAGMENT_MAJOR = new AUGFragment[] {
-            AUG_FRAGMENT_LIST = ListFragment.newInstance(),
+            AUG_FRAGMENT_ROOT = AUG_FRAGMENT_LIST = ListFragment.newInstance(),
             AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance(),
-            AUG_FRAGMENT_ROOT = AUG_FRAGMENT_ACCELEROMETER = AccelerometerFragment.newInstance()
+            AUG_FRAGMENT_ACCELEROMETER = AccelerometerFragment.newInstance()
     };
 
     public final AUGFragment[] AUG_FRAGMENT_MINOR = new AUGFragment[] {
