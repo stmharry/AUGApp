@@ -10,4 +10,5 @@
     <string name="fragment_list">My music</string>
     <string name="fragment_player">AUG player</string>
     <string name="fragment_analyzer">Beat analyzer</string>
+    <string name="fragment_accelerometer">Accelerometer Test</string>
 </resources>

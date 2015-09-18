@@ -33,9 +33,7 @@ public class AudioPlayer extends AUGComponent {
         return thisTime;
     }
 
-    /////////////
-    // PROCESS //
-    /////////////
+    //
 
     @Override
     public void create() {
@@ -65,7 +63,14 @@ public class AudioPlayer extends AUGComponent {
     }
 
     @Override
+    public void pause() {
+        super.pause();
+    }
+
+    @Override
     public void operation() {
+        super.operation();
+
         byte[] in = dequeueInput(TIMEOUT_US);
 
         if(in != null) {

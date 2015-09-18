@@ -79,7 +79,8 @@ public class SongManager {
                 song = (titleKey == null)? songList.get(0) : getSongByTitleKey(titleKey);
             } else if(augFragment == augActivity.AUG_FRAGMENT_ANALYZER) {
                 for(Song s: songList) {
-                    if(augActivity.getPreferences(Context.MODE_PRIVATE).getFloat(Song.FIELD_BPM + s.getTitleKey(), 0) == 0) {
+                    if(s.getBPM() == 0) {
+                        // if(s.getDuration() > 20000) continue; // TODO: remove
                         song = s;
                         break;
                     }
@@ -101,7 +102,7 @@ public class SongManager {
     private void makeSongList() {
         Cursor cursor = augActivity.getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null, null, null);
         while(cursor.moveToNext()) {
-            if(cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE)).startsWith("2015")) continue; // TODO: remove constraint
+            if(cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE)).startsWith("2015")) continue; // TODO: remove
 
             String title = cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE));
             String titleKey = cursor.getString(cursor.getColumnIndex(Song.FIELD_TITLE_KEY));

@@ -33,12 +33,14 @@ public class AUGActivity extends AppCompatActivity {
             AUG_FRAGMENT_ROOT,
             AUG_FRAGMENT_LIST,
             AUG_FRAGMENT_PLAYER,
+            AUG_FRAGMENT_ACCELEROMETER,
             AUG_FRAGMENT_MINOR_CURRENT,
             AUG_FRAGMENT_ANALYZER;
 
     public final AUGFragment[] AUG_FRAGMENT_MAJOR = new AUGFragment[] {
-            AUG_FRAGMENT_ROOT = AUG_FRAGMENT_LIST = ListFragment.newInstance(),
-            AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance()
+            AUG_FRAGMENT_LIST = ListFragment.newInstance(),
+            AUG_FRAGMENT_PLAYER = PlayerFragment.newInstance(),
+            AUG_FRAGMENT_ROOT = AUG_FRAGMENT_ACCELEROMETER = AccelerometerFragment.newInstance()
     };
 
     public final AUGFragment[] AUG_FRAGMENT_MINOR = new AUGFragment[] {
@@ -89,7 +91,7 @@ public class AUGActivity extends AppCompatActivity {
             AUG_FRAGMENT_CURRENT = AUG_FRAGMENT_MAJOR_CURRENT;
             AUG_FRAGMENT_MAJOR_CURRENT = fragment;
             drawerContentResource = R.id.drawer_content_major;
-            //
+
             drawerLayout.closeDrawer(drawerListView);
             actionBarTitle = getName(fragment);
             actionBar.setTitle(actionBarTitle);
@@ -97,7 +99,7 @@ public class AUGActivity extends AppCompatActivity {
             AUG_FRAGMENT_CURRENT = AUG_FRAGMENT_MINOR_CURRENT;
             AUG_FRAGMENT_MINOR_CURRENT = fragment;
             drawerContentResource = R.id.drawer_content_minor;
-            //
+
             for(AUGLayout augLayout: AUG_LAYOUT) {
                 augLayout.set(isNull);
             }
@@ -147,7 +149,7 @@ public class AUGActivity extends AppCompatActivity {
         //
 
         replaceLayout(AUG_LAYOUT_MAJOR, AUG_FRAGMENT_ROOT);
-        replaceLayout(AUG_LAYOUT_MINOR, AUG_FRAGMENT_ANALYZER);
+        replaceLayout(AUG_LAYOUT_MINOR, AUG_FRAGMENT_ANALYZER); // TODO: enable
     }
 
     @Override

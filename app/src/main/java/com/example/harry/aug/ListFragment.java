@@ -10,6 +10,8 @@ public class ListFragment extends AUGFragment {
     private static final int LAYOUT_RESOURCE = R.layout.fragment_list;
     private static final int NAME_RESOURCE = R.string.fragment_list;
 
+    private SongAdapter songAdapter;
+
     //
 
     public static ListFragment newInstance() {
@@ -24,11 +26,19 @@ public class ListFragment extends AUGFragment {
     //
 
     @Override
+    public void updateView() {
+        songAdapter.notifyDataSetChanged();
+    }
+
+    //
+
+    @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
         ListView songListView = (ListView) augActivity.findViewById(R.id.list_song_list);
-        songListView.setAdapter(new SongAdapter(augActivity, augActivity.getSongManager()));
+        songAdapter = new SongAdapter(augActivity, augActivity.getSongManager());
+        songListView.setAdapter(songAdapter);
         songListView.setOnItemClickListener(new SongListOnItemClickListener());
     }
 

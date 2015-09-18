@@ -37,15 +37,15 @@ public class AUGFragment extends Fragment {
 
     //
 
-    public void onAUGManagerStop() {}
+    public void updateView() {}
 
-    public void startAUGManager() {}
+    public void onAUGManagerDestroy() {}
 
-    public void pauseAUGManager() {}
+    protected void startAUGManager() {}
 
-    public void stopAUGManager() {
+    protected void pauseAUGManager() {}
 
-    }
+    protected void stopAUGManager() {}
 
     //
 

@@ -4,6 +4,7 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 
 /**
@@ -11,36 +12,36 @@ import android.util.Log;
  */
 public class AUGManager {
     private static final String TAG = "AUGManager";
-    private static final boolean MULTI_THREAD = true;
 
     public static final int UPDATE_FAIL = -1;
+    public static final int COMPONENT_STOP = 1;
 
     private AUGActivity augActivity;
     private AUGFragment augFragment;
     private State state;
     private Song song;
     private MediaExtractor mediaExtractor;
-    private AUGComponent[] AUGComponents;
+    private AUGComponent[] augComponents;
     private Handler handler;
     private AUGTimeUpdater augTimeUpdater;
-    private Destroyer destroyer;
+    private long time;
 
-    public AUGManager(AUGActivity augActivity, AUGFragment augFragment, AUGComponent[] AUGComponents, AUGTimeUpdater augTimeUpdater) {
+    public AUGManager(AUGActivity augActivity, AUGFragment augFragment, AUGComponent[] augComponents, AUGTimeUpdater augTimeUpdater) {
         this.augActivity = augActivity;
         this.augFragment = augFragment;
         this.state = State.STATE_STOPPED;
         this.mediaExtractor = new MediaExtractor();
-        this.AUGComponents = AUGComponents;
+        this.augComponents = augComponents;
 
-        this.handler = new Handler(Looper.getMainLooper());
+        this.handler = new ComponentHandler(Looper.getMainLooper());
         this.augTimeUpdater = augTimeUpdater;
         this.augTimeUpdater.setAUGActivity(augActivity);
         this.augTimeUpdater.setAUGManager(this);
-        this.destroyer = new Destroyer();
 
-        for(int i = 0; i < AUGComponents.length; i++) {
-            AUGComponents[i].setAugManager(this);
-            AUGComponents[i].setNext((i != AUGComponents.length - 1)? AUGComponents[i + 1] : null);
+        for(int i = 0; i < augComponents.length; i++) {
+            augComponents[i].setAugManager(this);
+            augComponents[i].setHandler(handler);
+            augComponents[i].setNext((i != augComponents.length - 1)? augComponents[i + 1] : null);
         }
     }
 
@@ -58,6 +59,10 @@ public class AUGManager {
         return state;
     }
 
+    public Song getSong() {
+        return song;
+    }
+
     public MediaExtractor getMediaExtractor() {
         return mediaExtractor;
     }
@@ -72,6 +77,7 @@ public class AUGManager {
 
         // Media Extractor
         try {
+            mediaExtractor = new MediaExtractor();
             mediaExtractor.setDataSource(dataSource);
         } catch (Exception e) {
             Log.e(TAG, "Media extractor error: " + e.getMessage());
@@ -98,10 +104,16 @@ public class AUGManager {
 
     //
 
+    private void syncNotify() {
+        for(AUGComponent augComponent: augComponents) {
+            augComponent.syncNotify();
+        }
+    }
+
     public void prepare() {
-        for(AUGComponent AUGComponent: AUGComponents) {
-            AUGComponent.create();
-            AUGComponent.start();
+        for(AUGComponent augComponent: augComponents) {
+            augComponent.create();
+            augComponent.start();
         }
     }
 
@@ -109,7 +121,7 @@ public class AUGManager {
         switch(state) {
             case STATE_STOPPED:
                 state = State.STATE_PLAYING;
-                for(AUGComponent augComponent: AUGComponents) {
+                for(AUGComponent augComponent: augComponents) {
                     (new Thread(augComponent)).start();
                 }
                 augTimeUpdater.setLoop(true);
@@ -117,11 +129,7 @@ public class AUGManager {
                 break;
             case STATE_PAUSED:
                 state = State.STATE_PLAYING;
-                synchronized(this) {
-                    for(AUGComponent augComponent: AUGComponents) {
-                        augComponent.notify();
-                    }
-                }
+                syncNotify();
                 augTimeUpdater.setLoop(true);
                 handler.post(augTimeUpdater);
                 break;
@@ -131,20 +139,33 @@ public class AUGManager {
     }
 
     public void pause() {
+        Log.d(TAG, "Pause");
         if(state == State.STATE_PLAYING) {
             state = State.STATE_PAUSED;
 
             handler.removeCallbacks(augTimeUpdater);
-            //augTimeUpdater.setLoop(false);
-            //handler.post(augTimeUpdater);
         }
     }
 
     public void stop() {
-        if(state != State.STATE_STOPPED) {
-            state = State.STATE_STOPPED;
-            destroyer.run();
-            //handler.post(destroyer);
+        Log.d(TAG, "Stop");
+        switch(state) {
+            case STATE_STOPPED:
+                break;
+            case STATE_PLAYING:
+                state = State.STATE_STOPPED;
+                break;
+            case STATE_PAUSED:
+                state = State.STATE_STOPPED;
+                syncNotify();
+                break;
+        }
+    }
+
+    public void destroy() {
+        state = State.STATE_STOPPED;
+        for(AUGComponent augComponent: augComponents) {
+            augComponent.destroy();
         }
     }
 
@@ -157,7 +178,11 @@ public class AUGManager {
     }
 
     public long getTime() {
-        return AUGComponents[0].getTime();
+        return time;
+    }
+
+    public long updateTime() {
+        return (time = augComponents[0].getTime()); // TODO: getTime() results in 0 sometimes... no lock?
     }
 
     //
@@ -168,11 +193,26 @@ public class AUGManager {
         STATE_PAUSED
     }
 
-    private class Destroyer implements Runnable {
+    private class ComponentHandler extends Handler {
+        private int stoppedComponentCount;
+
+        public ComponentHandler(Looper looper) {
+            super(looper);
+        }
+
         @Override
-        public void run() {
-            for(AUGComponent AUGComponent: AUGComponents) {
-                AUGComponent.destroy();
+        public void handleMessage(Message message) {
+            if(message.what == COMPONENT_STOP) {
+                if(++stoppedComponentCount == augComponents.length) {
+                    stoppedComponentCount = 0;
+
+                    boolean isForcedStop = (state == State.STATE_STOPPED);
+                    AUGManager.this.destroy();
+
+                    if(!isForcedStop) {
+                        augFragment.onAUGManagerDestroy();
+                    }
+                }
             }
         }
     }

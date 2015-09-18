@@ -31,9 +31,7 @@ public class Decoder extends AUGComponent {
         return next.getTime();
     }
 
-    /////////////
-    // PROCESS //
-    /////////////
+    //
 
     @Override
     public void create() {
@@ -60,6 +58,11 @@ public class Decoder extends AUGComponent {
 
         inputBuffers = mediaCodec.getInputBuffers();
         outputBuffers = mediaCodec.getOutputBuffers();
+    }
+
+    @Override
+    public void pause() {
+        super.pause();
     }
 
     @Override

@@ -29,7 +29,7 @@ public class PlayerFragment extends AUGFragment {
     //
 
     @Override
-    public void startAUGManager() {
+    protected void startAUGManager() {
         SongManager songManager = augActivity.getSongManager();
         Song song = songManager.getSongByFragment(this);
 
@@ -39,13 +39,13 @@ public class PlayerFragment extends AUGFragment {
     }
 
     @Override
-    public void pauseAUGManager() {
+    protected void pauseAUGManager() {
         augManager.pause();
         augActivity.getSongManager().saveSongOfPlayerFragment();
     }
 
     @Override
-    public void stopAUGManager() {
+    protected void stopAUGManager() {
         augManager.stop();
     }
 
@@ -68,7 +68,7 @@ public class PlayerFragment extends AUGFragment {
 
     //
 
-    private class TimeUpdater extends AUGTimeUpdater {
+    private class TimeUpdater extends AUGTimeUpdater { // TODO: update via last component callback
         private final int UPDATE_INTERVAL = 50;
 
         private LinearLayout playerLayout;
@@ -92,7 +92,7 @@ public class PlayerFragment extends AUGFragment {
                 allTimeView.setText(String.format("All: %.2f s", time));
             }
 
-            long timeUs = augManager.getTime();
+            long timeUs = augManager.updateTime();
 
             if(timeUs != AUGManager.UPDATE_FAIL) {
                 if(currentTimeView == null) {

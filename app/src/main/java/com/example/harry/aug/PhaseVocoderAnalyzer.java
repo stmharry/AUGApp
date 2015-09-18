@@ -1,5 +1,7 @@
 package com.example.harry.aug;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -16,9 +18,9 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private static final float FFT_TIME = 0.01f;
     private static final int FFT_HOP_RATIO = 4;
 
-    private Util util;
+    private Accelerometer accelerometer;
+    private Controller controller;
     private FloatBuffer[] outFloatBuffer;
-    private FloatBuffer frameBuffer;
     private float[] frameRecord;
 
     private float[][] phase;
@@ -26,11 +28,9 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     private float speed;
     private int normalFrame;
     private float frame;
-    private int removedFrame;
 
     private int floorFrame;
     private float fracFrame;
-
 
     public static PhaseVocoderAnalyzer newInstance() {
         return new PhaseVocoderAnalyzer();
@@ -63,44 +63,6 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
         float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
         long thisTime = (long) (thisFrame * fftHopSizeUs);
-
-        return thisTime;
-    }
-
-    //@Override
-    public synchronized long _getTime() {
-        long nextTime = next.getTime();
-        if(nextTime == AUGManager.UPDATE_FAIL) {
-            return AUGManager.UPDATE_FAIL;
-        }
-
-        float nextFrame = (float) nextTime / fftHopSizeUs - removedFrame;
-        int floorNextFrame = (int) Math.floor(nextFrame);
-        float fracNextFrame = nextFrame - floorNextFrame;
-
-        myLogD("--- [SEEK] ---");
-        myLogD("nextTime = " + String.valueOf(nextTime));
-        myLogD("nextFrame = " + String.valueOf(nextFrame));
-        myLogD("removedFrame = " + String.valueOf(removedFrame));
-
-        frameBuffer.flip();
-        frameBuffer.position(floorNextFrame);
-        frameBuffer.mark();
-
-        float leftFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : 0;
-        float rightFrame = (frameBuffer.hasRemaining())? frameBuffer.get() : leftFrame;
-        myLogD("leftFrame = " + String.valueOf(leftFrame));
-        myLogD("rightFrame = " + String.valueOf(rightFrame));
-
-        frameBuffer.reset();
-        frameBuffer.compact();
-        removedFrame += floorNextFrame;
-
-        float thisFrame = leftFrame * (1 - fracNextFrame) + rightFrame * fracNextFrame;
-        long thisTime = (long) (thisFrame * fftHopSizeUs);
-
-        myLogD("thisFrame = " + String.valueOf(thisFrame));
-        myLogD("thisTime = " + String.valueOf(thisTime));
 
         return thisTime;
     }
@@ -142,13 +104,67 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
     //
 
+    public void process(float[] r, float[] t, float[] real) {
+        float[] imag = new float[fftFrameSize];
+
+        window.window(real);
+        fft.fft(real, imag, true);
+
+        Util.cart2pol(r, t, Util.compact(real), Util.compact(imag));
+    }
+
+    public float[] interpolate(float[][] phase, int ch, float[] leftReal, float[] rightReal, float ratio) {
+        float[] leftMag = new float[fftFrameSizeCompact];
+        float[] rightMag = new float[fftFrameSizeCompact];
+        float[] leftPhase = new float[fftFrameSizeCompact];
+        float[] rightPhase = new float[fftFrameSizeCompact];
+
+        process(leftMag, leftPhase, leftReal);
+        process(rightMag, rightPhase, rightReal);
+
+        if(phase[ch] == null) {
+            phase[ch] = Arrays.copyOf(leftPhase, fftFrameSizeCompact);
+        } else {
+            for(int i = 0; i < fftFrameSizeCompact; i++) {
+                phase[ch][i] += (rightPhase[i] - leftPhase[i]);
+            }
+        }
+
+        float[] magnitude = new float[fftFrameSizeCompact];
+        for (int i = 0; i < fftFrameSizeCompact; i++) {
+            magnitude[i] = (1 - ratio) * leftMag[i] + ratio * rightMag[i];
+        }
+
+        float[] interRealTrunc = new float[fftFrameSizeCompact];
+        float[] interImagTrunc = new float[fftFrameSizeCompact];
+
+        Util.pol2cart(interRealTrunc, interImagTrunc, magnitude, phase[ch]);
+
+        float[] interReal = Util.expand(interRealTrunc, true);
+        float[] interImag = Util.expand(interImagTrunc, false);
+
+        fft.ifft(interReal, interImag, true);
+        fft.scale(interReal, interImag);
+
+        window.window(interReal);
+        window.scale(interReal);
+
+        return interReal;
+    }
+
+    //
+
     @Override
     public void create() {
         super.create();
 
-        fft = new FFT(fftFrameSize, fftSizeLog);
+        fft = new FFT(fftFrameSize);
         window = new Window(fftFrameSize);
         util = new Util();
+        Song song = augManager.getSong();
+        accelerometer = new Accelerometer(augManager.getAUGActivity());
+        accelerometer.register();
+        controller = new Controller(song.getBeatCount(), song.getBeatTime());
 
         speed = 1f;
     }
@@ -159,7 +175,6 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
         normalFrame = 0;
         frame = 0;
-        removedFrame = 0;
         floorLeftSample = 0;
         ceilRightSample = fftFrameAndHopSize;
 
@@ -168,10 +183,16 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             outFloatBuffer[i] = FloatBuffer.allocate(BUFFER_CAPACITY);
             outFloatBuffer[i].put(new float[fftFrameSize]);
         }
-        frameBuffer = FloatBuffer.allocate(BUFFER_CAPACITY);
         frameRecord = new float[BUFFER_CAPACITY];
 
         phase = new float[numChannel][];
+    }
+
+    @Override
+    public void pause() {
+        super.pause();
+
+        accelerometer.unregister();
     }
 
     @Override
@@ -185,26 +206,17 @@ public class PhaseVocoderAnalyzer extends Analyzer {
             float[] in = getFrame(inFloatBuffer[i], floorLeftSample - startSample, fftFrameAndHopSize);
             float[] left = Arrays.copyOfRange(in, 0, fftFrameSize);
             float[] right = Arrays.copyOfRange(in, fftHopSize, fftFrameAndHopSize);
-            float[] inter = util.interpolate(phase, i, left, right, fracFrame);
+            float[] inter = interpolate(phase, i, left, right, fracFrame);
 
             out[i] = setOutput(outFloatBuffer[i], inter);
         }
 
-        /*
-        frameBuffer.put(frame);
-        if (frameBuffer.position() == frameBuffer.limit()) {
-            int thisRemovedSize = frameBuffer.position() - BUFFER_QUEUE_CAPACITY;
-            removedFrame += thisRemovedSize;
+        controller.control();
 
-            frameBuffer.position(thisRemovedSize);
-            frameBuffer.compact();
-        }*/
-
-        frameRecord[normalFrame] = frame;
+        frameRecord[normalFrame++] = frame;
         if(normalFrame >= frameRecord.length) {
             frameRecord = Arrays.copyOf(frameRecord, 2 * frameRecord.length);
         }
-        normalFrame++;
         frame += speed;
         //speed += 0.0001;
         startSample = floorLeftSample;
@@ -225,6 +237,8 @@ public class PhaseVocoderAnalyzer extends Analyzer {
     @Override
     public void stop() {
         super.stop();
+
+        accelerometer.unregister();
     }
 
     @Override
@@ -234,53 +248,33 @@ public class PhaseVocoderAnalyzer extends Analyzer {
 
     //
 
-    private class Util extends Analyzer.Util {
-        public void process(float[] r, float[] t, float[] real) {
-            float[] imag = new float[fftFrameSize];
+    private class Controller {
+        private long[] beatTime;
+        private int beatCount;
+        private int beatIndex;
 
-            window.window(real);
-            fft.fft(real, imag, true);
+        private int x;
 
-            cart2pol(r, t, compact(real), compact(imag));
+        public Controller(int beatCount, long[] beatTime) {
+            this.beatCount = beatCount;
+            this.beatTime = beatTime;
         }
 
-        public float[] interpolate(float[][] phase, int ch, float[] leftReal, float[] rightReal, float ratio) {
-            float[] leftMag = new float[fftFrameSizeCompact];
-            float[] rightMag = new float[fftFrameSizeCompact];
-            float[] leftPhase = new float[fftFrameSizeCompact];
-            float[] rightPhase = new float[fftFrameSizeCompact];
+        public float control() {
+            long time = augManager.getTime();
 
-            process(leftMag, leftPhase, leftReal);
-            process(rightMag, rightPhase, rightReal);
+            if(beatTime != null) {
+                while ((beatTime[beatIndex] < time) && (beatIndex < beatCount - 1)) {
+                    beatIndex++;
+                }
 
-            if(phase[ch] == null) {
-                phase[ch] = Arrays.copyOf(leftPhase, fftFrameSizeCompact);
-            } else {
-                for(int i = 0; i < fftFrameSizeCompact; i++) {
-                    phase[ch][i] += (rightPhase[i] - leftPhase[i]);
+                if((beatIndex < beatCount) && (Math.IEEEremainder(x++, 100) == 0)) {
+                    float stepTime = accelerometer.getRelativeTimeNextOnset();
+                    Log.d(TAG, String.format("[Time = %d][BeatTime[%d] = %d][StepTime = +%.2f]", time, beatIndex, beatTime[beatIndex], stepTime));
                 }
             }
 
-            float[] magnitude = new float[fftFrameSizeCompact];
-            for (int i = 0; i < fftFrameSizeCompact; i++) {
-                magnitude[i] = (1 - ratio) * leftMag[i] + ratio * rightMag[i];
-            }
-
-            float[] interRealTrunc = new float[fftFrameSizeCompact];
-            float[] interImagTrunc = new float[fftFrameSizeCompact];
-
-            pol2cart(interRealTrunc, interImagTrunc, magnitude, phase[ch]);
-
-            float[] interReal = expand(interRealTrunc, true);
-            float[] interImag = expand(interImagTrunc, false);
-
-            fft.ifft(interReal, interImag, true);
-            fft.scale(interReal, interImag);
-
-            window.window(interReal);
-            window.scale(interReal);
-
-            return interReal;
+            return 0; //
         }
     }
 }

@@ -29,12 +29,28 @@ public class AnalyzerFragment extends AUGFragment {
     //
 
     @Override
-    public void startAUGManager() {
+    public void onAUGManagerDestroy() {
+        song.setBPM(ANALYZER_ANALYZER.getBPM());
+        song.setBeatScore(ANALYZER_ANALYZER.getBeatScore());
+        long[] beatTime = ANALYZER_ANALYZER.getBeatTime();
+        song.setBeatCount(beatTime.length);
+        song.setBeatTime(beatTime);
+
+        augActivity.getSongManager().dbUpdate(song);
+        augActivity.AUG_FRAGMENT_MAJOR_CURRENT.updateView();
+
+        SongManager songManager = augActivity.getSongManager();
+        songManager.setSongByFragment(this, null);
+        startAUGManager();
+    }
+
+    @Override
+    protected void startAUGManager() {
         SongManager songManager = augActivity.getSongManager();
         song = songManager.getSongByFragment(this);
 
         if(song != null) {
-            ((TextView) augActivity.findViewById(R.id.analyzer_info)).setText("Analyzing: " + song.getTitle()); //
+            ((TextView) augActivity.findViewById(R.id.analyzer_info)).setText("Analyzing: " + song.getTitle()); // TODO: remove
 
             augManager.setSong(song);
             augManager.prepare();
@@ -43,34 +59,18 @@ public class AnalyzerFragment extends AUGFragment {
     }
 
     @Override
-    public void pauseAUGManager() {
+    protected void pauseAUGManager() {
         if(song != null) {
             augManager.pause();
         }
     }
 
     @Override
-    public void stopAUGManager() {
+    protected void stopAUGManager() {
         if(song != null) {
             augManager.stop();
         }
     }
-
-    @Override
-    public void onAUGManagerStop() {
-        song.setBPM(ANALYZER_ANALYZER.getBPM());
-        song.setBeatScore(ANALYZER_ANALYZER.getBeatScore());
-        long[] beatTime = ANALYZER_ANALYZER.getBeatTime();
-        song.setBeatCount(beatTime.length);
-        song.setBeatTime(beatTime);
-
-        augActivity.getSongManager().dbUpdate(song);
-
-        SongManager songManager = augActivity.getSongManager();
-        songManager.setSongByFragment(this, null);
-        startAUGManager();
-    }
-
 
     //
 
@@ -85,8 +85,8 @@ public class AnalyzerFragment extends AUGFragment {
 
         augManager = new AUGManager(augActivity, this, AUGComponents, timeUpdater);
 
-        SongManager songManager = augActivity.getSongManager();
-        songManager.setSongByFragment(this, songManager.getSongByTitle("ZHU - Faded")); //
+        // SongManager songManager = augActivity.getSongManager(); //
+        // songManager.setSongByFragment(this, songManager.getSongByTitle("ZHU - Faded")); // TODO: remove
     }
 
     //
@@ -107,7 +107,7 @@ public class AnalyzerFragment extends AUGFragment {
             LabROSAAnalyzer.State state = ANALYZER_ANALYZER.getState();
             switch(state) {
                 case STATE_ONSET:
-                    long curTime = augManager.getTime();
+                    long curTime = augManager.updateTime();
                     long allTime = augManager.getAllTime();
                     str = String.format("STATE_ONSET: %.3f (%d/%d)", (float) curTime / allTime, curTime, allTime);
                     break;
