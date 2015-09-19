@@ -7,9 +7,9 @@ import android.widget.TextView;
 
 public class AccelerometerFragment extends AUGFragment {
     static {
-        //System.loadLibrary("AUG");
+        System.loadLibrary("AUG");
     }
-    //public native String getStringNative();
+    public native String getStringNative();
 
     private static final String TAG = "AccelerometerFragment";
     private static final int LAYOUT_RESOURCE = R.layout.fragment_accelerometer;
@@ -59,7 +59,7 @@ public class AccelerometerFragment extends AUGFragment {
         accelerometerView.setTextSize(30);
 
         frameLayout.addView(accelerometerView);
-        //accelerometerView.setText(getStringNative());
+        accelerometerView.setText(getStringNative());
         accelerometer = new Accelerometer(augActivity);
     }
 
